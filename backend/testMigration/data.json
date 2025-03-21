@@ -1,0 +1,12 @@
+[
+  {
+    "op": "add",
+    "path": "/fields/System.Title",
+    "value": "Título del Test Case"
+  },
+  {
+    "op": "add",
+    "path": "/fields/Microsoft.VSTS.TCM.Steps",
+    "value": "<steps id=\"0\"><step id=\"1\" type=\"ActionStep\"><parameterizedString isformatted=\"true\">Acción del paso 1</parameterizedString><parameterizedString isformatted=\"true\"></parameterizedString></step><step id=\"2\" type=\"ValidateStep\"><parameterizedString isformatted=\"true\">Acción del paso 2</parameterizedString><parameterizedString isformatted=\"true\">Resultado esperado del paso 2</parameterizedString></step></steps>"
+  }
+]

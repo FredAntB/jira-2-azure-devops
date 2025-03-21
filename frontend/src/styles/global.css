@@ -1,0 +1,53 @@
+
+:root {
+  /* Colores principales */
+  --color-one: #5C6BC0;
+  --color-two: #7986CB;
+  --color-three: #9FA8DA;
+  --color-four: #C5CAE9;
+  --color-five: #E8EAF6;
+  --color-six: #7986CB;
+
+  /* Tamaños de letra */
+  --font-size-xsmall: 15px;
+  --font-size-small: 20px;
+  --font-size-medium: 30px;
+  --font-size-large: 40px;
+  --font-size-xlarge: 50px;
+}
+
+ /* Estilo para botones */
+ button {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: var(--secondary-color);
+}
+
+.button-blue {
+  background-color: var(--color-three);
+  color: black;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 200px;
+}
+
+.button-blue:hover {
+  background-color: var(--color-four);
+}
+
+.combo-box {
+  background-color: var(--color-three);
+  color: black;
+  border-radius: 5px;
+  max-width: 400px;
+  padding: 10px;
+}

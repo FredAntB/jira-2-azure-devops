@@ -1,0 +1,9 @@
+.jira-section h2{
+    text-align: center;
+    font-size: var(--font-size-xlarge);
+}
+
+.jira-section{
+    margin-bottom: 150px;
+}
+

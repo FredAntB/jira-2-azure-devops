@@ -1,0 +1,72 @@
+.layout {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    background-color: var(--color-four);
+    top: 0;
+    left: 0;
+    justify-content: center;
+    align-items: center; 
+}
+
+.migration-container {
+    margin: 15px auto;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 800px;
+  }
+  
+  .log-box {
+    height: 300px;
+    overflow-y: auto;
+    padding: 30px;
+    border-radius: 5px;
+    background-color: var(--color-five);
+  }
+  
+  .log-message {
+    font-size: var(font-size-medium);
+    color: black;
+  }
+  
+  .progress-bar {
+    width: 100%;
+    height: 10px;
+    background-color: var(--color-five);
+    border-radius: 0.25rem;
+    overflow: hidden;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background-color: var(--color-one);
+    transition: width 0.3s ease-in-out;
+  }
+  
+  .button-container{
+    display: flex;
+    align-items: flex-end;
+  }
+
+  .progress-text {
+    color: black;
+    font-size: var(font-size-medium);
+  }
+
+  .finish-button {
+    width: 100%;
+    background-color: var(--color-one);
+    color: white;
+    padding: 0.75rem;
+    text-align: center;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+  }
+  
+  .finish-button:hover {
+    background-color: var(--color-two);
+  }
+  

@@ -1,0 +1,302 @@
+{
+  "id": "6f713002-0460-4618-a6d0-74f91eaec425",
+  "name": "Modified Workflow",
+  "description": "This is the workflow we saw in our class",
+  "statuses": [
+    {
+      "id": "1",
+      "name": "Undefined",
+      "statusCategory": "To Do"
+    },
+    {
+      "id": "10008",
+      "name": "Archived",
+      "statusCategory": "Done"
+    },
+    {
+      "id": "10009",
+      "name": "Idea",
+      "statusCategory": "To Do"
+    },
+    {
+      "id": "10010",
+      "name": "Defined",
+      "statusCategory": "To Do"
+    },
+    {
+      "id": "10011",
+      "name": "Ready for dev",
+      "statusCategory": "To Do"
+    },
+    {
+      "id": "10012",
+      "name": "On hold",
+      "statusCategory": "To Do"
+    },
+    {
+      "id": "10013",
+      "name": "In correction",
+      "statusCategory": "To Do"
+    },
+    {
+      "id": "10014",
+      "name": "Final validation",
+      "statusCategory": "In Progress"
+    },
+    {
+      "id": "10015",
+      "name": "Testing",
+      "statusCategory": "In Progress"
+    },
+    {
+      "id": "10016",
+      "name": "Pending approbation",
+      "statusCategory": "In Progress"
+    },
+    {
+      "id": "10017",
+      "name": "In documentation",
+      "statusCategory": "In Progress"
+    },
+    {
+      "id": "10018",
+      "name": "Retesting",
+      "statusCategory": "In Progress"
+    },
+    {
+      "id": "10019",
+      "name": "Completed",
+      "statusCategory": "Done"
+    },
+    {
+      "id": "10020",
+      "name": "Canceled",
+      "statusCategory": "Done"
+    },
+    {
+      "id": "3",
+      "name": "In Progress",
+      "statusCategory": "In Progress"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "1",
+      "name": "Create",
+      "description": "",
+      "from": [],
+      "to": "1",
+      "type": "initial"
+    },
+    {
+      "id": "101",
+      "name": "adv",
+      "description": "",
+      "from": [
+        "10014"
+      ],
+      "to": "10016",
+      "type": "directed"
+    },
+    {
+      "id": "11",
+      "name": "Not in use",
+      "description": "",
+      "from": [
+        "1"
+      ],
+      "to": "10008",
+      "type": "directed"
+    },
+    {
+      "id": "111",
+      "name": "advance",
+      "description": "",
+      "from": [
+        "10014"
+      ],
+      "to": "10015",
+      "type": "directed"
+    },
+    {
+      "id": "121",
+      "name": "advancement",
+      "description": "",
+      "from": [
+        "10014"
+      ],
+      "to": "10017",
+      "type": "directed"
+    },
+    {
+      "id": "131",
+      "name": "almost there",
+      "description": "",
+      "from": [
+        "10015"
+      ],
+      "to": "10018",
+      "type": "directed"
+    },
+    {
+      "id": "141",
+      "name": "Storie finished",
+      "description": "",
+      "from": [
+        "10018"
+      ],
+      "to": "10019",
+      "type": "directed"
+    },
+    {
+      "id": "151",
+      "name": "Discard",
+      "description": "",
+      "from": [
+        "10018"
+      ],
+      "to": "10020",
+      "type": "directed"
+    },
+    {
+      "id": "161",
+      "name": "almost",
+      "description": "",
+      "from": [
+        "10016"
+      ],
+      "to": "10018",
+      "type": "directed"
+    },
+    {
+      "id": "171",
+      "name": "last ",
+      "description": "",
+      "from": [
+        "10017"
+      ],
+      "to": "10018",
+      "type": "directed"
+    },
+    {
+      "id": "181",
+      "name": "Change of heart",
+      "description": "",
+      "from": [
+        "10008"
+      ],
+      "to": "1",
+      "type": "directed"
+    },
+    {
+      "id": "191",
+      "name": "Forgot something",
+      "description": "",
+      "from": [
+        "10019"
+      ],
+      "to": "3",
+      "type": "directed"
+    },
+    {
+      "id": "201",
+      "name": "Change of heart",
+      "description": "",
+      "from": [
+        "10020"
+      ],
+      "to": "3",
+      "type": "directed"
+    },
+    {
+      "id": "21",
+      "name": "progress the storie",
+      "description": "",
+      "from": [
+        "1"
+      ],
+      "to": "10009",
+      "type": "directed"
+    },
+    {
+      "id": "211",
+      "name": "Back to the Start",
+      "description": "",
+      "from": [
+        "10012"
+      ],
+      "to": "1",
+      "type": "directed"
+    },
+    {
+      "id": "31",
+      "name": "Structure",
+      "description": "",
+      "from": [
+        "10009"
+      ],
+      "to": "10010",
+      "type": "directed"
+    },
+    {
+      "id": "41",
+      "name": "last step",
+      "description": "",
+      "from": [
+        "10010"
+      ],
+      "to": "10011",
+      "type": "directed"
+    },
+    {
+      "id": "51",
+      "name": "Rethinking",
+      "description": "",
+      "from": [
+        "10011"
+      ],
+      "to": "10012",
+      "type": "directed"
+    },
+    {
+      "id": "61",
+      "name": "To dev",
+      "description": "",
+      "from": [
+        "10011"
+      ],
+      "to": "3",
+      "type": "directed"
+    },
+    {
+      "id": "71",
+      "name": "Back to backlog",
+      "description": "",
+      "from": [
+        "3"
+      ],
+      "to": "10013",
+      "type": "directed"
+    },
+    {
+      "id": "81",
+      "name": "Advance",
+      "description": "",
+      "from": [
+        "10013"
+      ],
+      "to": "10010",
+      "type": "directed"
+    },
+    {
+      "id": "91",
+      "name": "Advancement",
+      "description": "",
+      "from": [
+        "3"
+      ],
+      "to": "10014",
+      "type": "directed"
+    }
+  ]
+}

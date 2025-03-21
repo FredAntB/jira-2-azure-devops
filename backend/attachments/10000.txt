@@ -1,0 +1,1578 @@
+# Role: 
+act as a nodejs expert engineer
+
+# Task:
+create a function that receives two jsons as strings and produces the output format:
+
+## first parameter:
+```json
+{
+  "self": "https://grupogamma1.atlassian.net/rest/api/3/workflow/search?expand=transitions,statuses&maxResults=50&startAt=0",
+  "maxResults": 50,
+  "startAt": 0,
+  "total": 6,
+  "isLast": true,
+  "values": [
+    {
+      "id": {
+        "name": "Builds Workflow",
+        "entityId": "Builds Workflow"
+      },
+      "description": "Builds Workflow",
+      "transitions": [
+        {
+          "id": "1",
+          "name": "Create Issue",
+          "description": "",
+          "from": [],
+          "to": "1",
+          "type": "initial"
+        },
+        {
+          "id": "2",
+          "name": "Close Issue",
+          "description": "",
+          "from": [
+            "1",
+            "3",
+            "4",
+            "400",
+            "401"
+          ],
+          "to": "6",
+          "type": "directed",
+          "screen": {
+            "id": "3",
+            "name": "Resolve Issue Screen"
+          }
+        },
+        {
+          "id": "20",
+          "name": "Wait for Build",
+          "description": "Wait for Bamboo to build the code for this issue",
+          "from": [
+            "1",
+            "3",
+            "4",
+            "401"
+          ],
+          "to": "400",
+          "type": "directed"
+        },
+        {
+          "id": "21",
+          "name": "Build Passed",
+          "description": "The build has passed",
+          "from": [
+            "400",
+            "401"
+          ],
+          "to": "5",
+          "type": "directed",
+          "screen": {
+            "id": "3",
+            "name": "Resolve Issue Screen"
+          }
+        },
+        {
+          "id": "22",
+          "name": "Build Failed",
+          "description": "The build for this issue failed.",
+          "from": [
+            "400"
+          ],
+          "to": "401",
+          "type": "directed"
+        },
+        {
+          "id": "3",
+          "name": "Reopen Issue",
+          "description": "",
+          "from": [
+            "5",
+            "6"
+          ],
+          "to": "4",
+          "type": "directed",
+          "screen": {
+            "id": "2",
+            "name": "Workflow Screen"
+          }
+        },
+        {
+          "id": "301",
+          "name": "Stop Progress",
+          "description": "",
+          "from": [
+            "3"
+          ],
+          "to": "1",
+          "type": "directed"
+        },
+        {
+          "id": "4",
+          "name": "Start Progress",
+          "description": "",
+          "from": [
+            "1",
+            "4",
+            "401"
+          ],
+          "to": "3",
+          "type": "directed"
+        },
+        {
+          "id": "5",
+          "name": "Resolve Issue",
+          "description": "",
+          "from": [
+            "1",
+            "3",
+            "4",
+            "400",
+            "401"
+          ],
+          "to": "5",
+          "type": "directed",
+          "screen": {
+            "id": "3",
+            "name": "Resolve Issue Screen"
+          }
+        },
+        {
+          "id": "701",
+          "name": "Close Issue",
+          "description": "Closing an issue indicates there is no more work to be done on it, and it has been verified as complete.",
+          "from": [
+            "5"
+          ],
+          "to": "6",
+          "type": "directed",
+          "screen": {
+            "id": "2",
+            "name": "Workflow Screen"
+          }
+        }
+      ],
+      "statuses": [
+        {
+          "id": "1",
+          "name": "Open"
+        },
+        {
+          "id": "3",
+          "name": "In Progress"
+        },
+        {
+          "id": "4",
+          "name": "Reopened"
+        },
+        {
+          "id": "400",
+          "name": "Building"
+        },
+        {
+          "id": "401",
+          "name": "Build Broken"
+        },
+        {
+          "id": "5",
+          "name": "Resolved"
+        },
+        {
+          "id": "6",
+          "name": "Closed"
+        }
+      ],
+      "created": "1969-12-31T20:00:00.000-0400",
+      "updated": "1969-12-31T20:00:00.000-0400"
+    },
+    {
+      "id": {
+        "name": "classic default workflow",
+        "entityId": "bcf9d7d4-20c5-4290-af00-1c01a3216b4a"
+      },
+      "description": "The classic JIRA default workflow",
+      "transitions": [
+        {
+          "id": "1",
+          "name": "Create Issue",
+          "description": "",
+          "from": [],
+          "to": "1",
+          "type": "initial"
+        },
+        {
+          "id": "2",
+          "name": "Close Issue",
+          "description": "",
+          "from": [
+            "1",
+            "3",
+            "4"
+          ],
+          "to": "6",
+          "type": "directed",
+          "screen": {
+            "id": "3",
+            "name": "Resolve Issue Screen"
+          }
+        },
+        {
+          "id": "3",
+          "name": "Reopen Issue",
+          "description": "",
+          "from": [
+            "5",
+            "6"
+          ],
+          "to": "4",
+          "type": "directed",
+          "screen": {
+            "id": "2",
+            "name": "Workflow Screen"
+          }
+        },
+        {
+          "id": "301",
+          "name": "Stop Progress",
+          "description": "",
+          "from": [
+            "3"
+          ],
+          "to": "1",
+          "type": "directed"
+        },
+        {
+          "id": "4",
+          "name": "Start Progress",
+          "description": "",
+          "from": [
+            "1",
+            "4"
+          ],
+          "to": "3",
+          "type": "directed"
+        },
+        {
+          "id": "5",
+          "name": "Resolve Issue",
+          "description": "",
+          "from": [
+            "1",
+            "3",
+            "4"
+          ],
+          "to": "5",
+          "type": "directed",
+          "screen": {
+            "id": "3",
+            "name": "Resolve Issue Screen"
+          }
+        },
+        {
+          "id": "701",
+          "name": "Close Issue",
+          "description": "Closing an issue indicates there is no more work to be done on it, and it has been verified as complete.",
+          "from": [
+            "5"
+          ],
+          "to": "6",
+          "type": "directed",
+          "screen": {
+            "id": "2",
+            "name": "Workflow Screen"
+          }
+        }
+      ],
+      "statuses": [
+        {
+          "id": "1",
+          "name": "Open"
+        },
+        {
+          "id": "3",
+          "name": "In Progress"
+        },
+        {
+          "id": "4",
+          "name": "Reopened"
+        },
+        {
+          "id": "5",
+          "name": "Resolved"
+        },
+        {
+          "id": "6",
+          "name": "Closed"
+        }
+      ],
+      "created": "2025-02-04T20:15:27.477-0400",
+      "updated": "2025-02-04T20:15:27.477-0400"
+    },
+    {
+      "id": {
+        "name": "jira",
+        "entityId": "jira"
+      },
+      "description": "The default Jira workflow.",
+      "transitions": [
+        {
+          "id": "1",
+          "name": "Create Issue",
+          "description": "",
+          "from": [],
+          "to": "1",
+          "type": "initial"
+        },
+        {
+          "id": "2",
+          "name": "Close Issue",
+          "description": "",
+          "from": [
+            "1",
+            "3",
+            "4"
+          ],
+          "to": "6",
+          "type": "directed",
+          "screen": {
+            "id": "3",
+            "name": "Resolve Issue Screen"
+          }
+        },
+        {
+          "id": "3",
+          "name": "Reopen Issue",
+          "description": "",
+          "from": [
+            "5",
+            "6"
+          ],
+          "to": "4",
+          "type": "directed",
+          "screen": {
+            "id": "2",
+            "name": "Workflow Screen"
+          }
+        },
+        {
+          "id": "301",
+          "name": "Stop Progress",
+          "description": "",
+          "from": [
+            "3"
+          ],
+          "to": "1",
+          "type": "directed"
+        },
+        {
+          "id": "4",
+          "name": "Start Progress",
+          "description": "",
+          "from": [
+            "1",
+            "4"
+          ],
+          "to": "3",
+          "type": "directed"
+        },
+        {
+          "id": "5",
+          "name": "Resolve Issue",
+          "description": "",
+          "from": [
+            "1",
+            "3",
+            "4"
+          ],
+          "to": "5",
+          "type": "directed",
+          "screen": {
+            "id": "3",
+            "name": "Resolve Issue Screen"
+          }
+        },
+        {
+          "id": "701",
+          "name": "Close Issue",
+          "description": "Closing an issue indicates there is no more work to be done on it, and it has been verified as complete.",
+          "from": [
+            "5"
+          ],
+          "to": "6",
+          "type": "directed",
+          "screen": {
+            "id": "2",
+            "name": "Workflow Screen"
+          }
+        }
+      ],
+      "statuses": [
+        {
+          "id": "1",
+          "name": "Open"
+        },
+        {
+          "id": "3",
+          "name": "In Progress"
+        },
+        {
+          "id": "4",
+          "name": "Reopened"
+        },
+        {
+          "id": "5",
+          "name": "Resolved"
+        },
+        {
+          "id": "6",
+          "name": "Closed"
+        }
+      ],
+      "created": "1969-12-31T20:00:00.000-0400",
+      "updated": "1969-12-31T20:00:00.000-0400"
+    },
+    {
+      "id": {
+        "name": "Modified Workflow",
+        "entityId": "6f713002-0460-4618-a6d0-74f91eaec425"
+      },
+      "description": "This is the workflow we saw in our class",
+      "transitions": [
+        {
+          "id": "1",
+          "name": "Create",
+          "description": "",
+          "from": [],
+          "to": "1",
+          "type": "initial"
+        },
+        {
+          "id": "101",
+          "name": "adv",
+          "description": "",
+          "from": [
+            "10014"
+          ],
+          "to": "10016",
+          "type": "directed"
+        },
+        {
+          "id": "11",
+          "name": "Not in use",
+          "description": "",
+          "from": [
+            "1"
+          ],
+          "to": "10008",
+          "type": "directed"
+        },
+        {
+          "id": "111",
+          "name": "advance",
+          "description": "",
+          "from": [
+            "10014"
+          ],
+          "to": "10015",
+          "type": "directed"
+        },
+        {
+          "id": "121",
+          "name": "advancement",
+          "description": "",
+          "from": [
+            "10014"
+          ],
+          "to": "10017",
+          "type": "directed"
+        },
+        {
+          "id": "131",
+          "name": "almost there",
+          "description": "",
+          "from": [
+            "10015"
+          ],
+          "to": "10018",
+          "type": "directed"
+        },
+        {
+          "id": "141",
+          "name": "Storie finished",
+          "description": "",
+          "from": [
+            "10018"
+          ],
+          "to": "10019",
+          "type": "directed"
+        },
+        {
+          "id": "151",
+          "name": "Discard",
+          "description": "",
+          "from": [
+            "10018"
+          ],
+          "to": "10020",
+          "type": "directed"
+        },
+        {
+          "id": "161",
+          "name": "almost",
+          "description": "",
+          "from": [
+            "10016"
+          ],
+          "to": "10018",
+          "type": "directed"
+        },
+        {
+          "id": "171",
+          "name": "last ",
+          "description": "",
+          "from": [
+            "10017"
+          ],
+          "to": "10018",
+          "type": "directed"
+        },
+        {
+          "id": "181",
+          "name": "Change of heart",
+          "description": "",
+          "from": [
+            "10008"
+          ],
+          "to": "1",
+          "type": "directed"
+        },
+        {
+          "id": "191",
+          "name": "Forgot something",
+          "description": "",
+          "from": [
+            "10019"
+          ],
+          "to": "3",
+          "type": "directed"
+        },
+        {
+          "id": "201",
+          "name": "Change of heart",
+          "description": "",
+          "from": [
+            "10020"
+          ],
+          "to": "3",
+          "type": "directed"
+        },
+        {
+          "id": "21",
+          "name": "progress the storie",
+          "description": "",
+          "from": [
+            "1"
+          ],
+          "to": "10009",
+          "type": "directed"
+        },
+        {
+          "id": "211",
+          "name": "Back to the Start",
+          "description": "",
+          "from": [
+            "10012"
+          ],
+          "to": "1",
+          "type": "directed"
+        },
+        {
+          "id": "31",
+          "name": "Structure",
+          "description": "",
+          "from": [
+            "10009"
+          ],
+          "to": "10010",
+          "type": "directed"
+        },
+        {
+          "id": "41",
+          "name": "last step",
+          "description": "",
+          "from": [
+            "10010"
+          ],
+          "to": "10011",
+          "type": "directed"
+        },
+        {
+          "id": "51",
+          "name": "Rethinking",
+          "description": "",
+          "from": [
+            "10011"
+          ],
+          "to": "10012",
+          "type": "directed"
+        },
+        {
+          "id": "61",
+          "name": "To dev",
+          "description": "",
+          "from": [
+            "10011"
+          ],
+          "to": "3",
+          "type": "directed"
+        },
+        {
+          "id": "71",
+          "name": "Back to backlog",
+          "description": "",
+          "from": [
+            "3"
+          ],
+          "to": "10013",
+          "type": "directed"
+        },
+        {
+          "id": "81",
+          "name": "Advance",
+          "description": "",
+          "from": [
+            "10013"
+          ],
+          "to": "10010",
+          "type": "directed"
+        },
+        {
+          "id": "91",
+          "name": "Advancement",
+          "description": "",
+          "from": [
+            "3"
+          ],
+          "to": "10014",
+          "type": "directed"
+        }
+      ],
+      "statuses": [
+        {
+          "id": "1",
+          "name": "Undefined"
+        },
+        {
+          "id": "10008",
+          "name": "Archived"
+        },
+        {
+          "id": "10009",
+          "name": "Idea"
+        },
+        {
+          "id": "10010",
+          "name": "Defined"
+        },
+        {
+          "id": "10011",
+          "name": "Ready for dev"
+        },
+        {
+          "id": "10012",
+          "name": "On hold"
+        },
+        {
+          "id": "10013",
+          "name": "In correction"
+        },
+        {
+          "id": "10014",
+          "name": "Final validation"
+        },
+        {
+          "id": "10015",
+          "name": "Testing"
+        },
+        {
+          "id": "10016",
+          "name": "Pending approbation"
+        },
+        {
+          "id": "10017",
+          "name": "In documentation"
+        },
+        {
+          "id": "10018",
+          "name": "Retesting"
+        },
+        {
+          "id": "10019",
+          "name": "Completed"
+        },
+        {
+          "id": "10020",
+          "name": "Canceled"
+        },
+        {
+          "id": "3",
+          "name": "In Progress"
+        }
+      ],
+      "created": "2025-02-18T09:39:24.367-0400",
+      "updated": "2025-02-27T00:26:33.931-0400"
+    },
+    {
+      "id": {
+        "name": "Project Workflow",
+        "entityId": "470f6268-9abd-41f2-9bc4-11b6c9a0eccb"
+      },
+      "description": "This is a modification of the workflow we saw in our class",
+      "transitions": [
+        {
+          "id": "1",
+          "name": "Create",
+          "description": "",
+          "from": [],
+          "to": "1",
+          "type": "initial"
+        },
+        {
+          "id": "101",
+          "name": "adv",
+          "description": "",
+          "from": [
+            "10014"
+          ],
+          "to": "10016",
+          "type": "directed"
+        },
+        {
+          "id": "11",
+          "name": "Not in use",
+          "description": "",
+          "from": [
+            "1"
+          ],
+          "to": "10008",
+          "type": "directed"
+        },
+        {
+          "id": "111",
+          "name": "advance",
+          "description": "",
+          "from": [
+            "10014"
+          ],
+          "to": "10015",
+          "type": "directed"
+        },
+        {
+          "id": "121",
+          "name": "advancement",
+          "description": "",
+          "from": [
+            "10014"
+          ],
+          "to": "10017",
+          "type": "directed"
+        },
+        {
+          "id": "131",
+          "name": "almost there",
+          "description": "",
+          "from": [
+            "10015"
+          ],
+          "to": "10018",
+          "type": "directed"
+        },
+        {
+          "id": "141",
+          "name": "Storie finished",
+          "description": "",
+          "from": [
+            "10018"
+          ],
+          "to": "10019",
+          "type": "directed"
+        },
+        {
+          "id": "151",
+          "name": "Discard",
+          "description": "",
+          "from": [
+            "10018"
+          ],
+          "to": "10020",
+          "type": "directed"
+        },
+        {
+          "id": "161",
+          "name": "almost",
+          "description": "",
+          "from": [
+            "10016"
+          ],
+          "to": "10018",
+          "type": "directed"
+        },
+        {
+          "id": "171",
+          "name": "last ",
+          "description": "",
+          "from": [
+            "10017"
+          ],
+          "to": "10018",
+          "type": "directed"
+        },
+        {
+          "id": "181",
+          "name": "Back to the Start",
+          "description": "",
+          "from": [
+            "10012"
+          ],
+          "to": "1",
+          "type": "directed"
+        },
+        {
+          "id": "21",
+          "name": "progress the storie",
+          "description": "",
+          "from": [
+            "1"
+          ],
+          "to": "10009",
+          "type": "directed"
+        },
+        {
+          "id": "31",
+          "name": "Structure",
+          "description": "",
+          "from": [
+            "10009"
+          ],
+          "to": "10010",
+          "type": "directed"
+        },
+        {
+          "id": "41",
+          "name": "last step",
+          "description": "",
+          "from": [
+            "10010"
+          ],
+          "to": "10011",
+          "type": "directed"
+        },
+        {
+          "id": "51",
+          "name": "Rethinking",
+          "description": "",
+          "from": [
+            "10011"
+          ],
+          "to": "10012",
+          "type": "directed"
+        },
+        {
+          "id": "61",
+          "name": "To dev",
+          "description": "",
+          "from": [
+            "10011"
+          ],
+          "to": "3",
+          "type": "directed"
+        },
+        {
+          "id": "71",
+          "name": "Back to backlog",
+          "description": "",
+          "from": [
+            "3"
+          ],
+          "to": "10013",
+          "type": "directed"
+        },
+        {
+          "id": "81",
+          "name": "Advance",
+          "description": "",
+          "from": [
+            "10013"
+          ],
+          "to": "10010",
+          "type": "directed"
+        },
+        {
+          "id": "91",
+          "name": "Advancement",
+          "description": "",
+          "from": [
+            "3"
+          ],
+          "to": "10014",
+          "type": "directed"
+        }
+      ],
+      "statuses": [
+        {
+          "id": "1",
+          "name": "Undefined"
+        },
+        {
+          "id": "10008",
+          "name": "Archived"
+        },
+        {
+          "id": "10009",
+          "name": "Idea"
+        },
+        {
+          "id": "10010",
+          "name": "Defined"
+        },
+        {
+          "id": "10011",
+          "name": "Ready for dev"
+        },
+        {
+          "id": "10012",
+          "name": "On hold"
+        },
+        {
+          "id": "10013",
+          "name": "In correction"
+        },
+        {
+          "id": "10014",
+          "name": "Final validation"
+        },
+        {
+          "id": "10015",
+          "name": "Testing"
+        },
+        {
+          "id": "10016",
+          "name": "Pending approbation"
+        },
+        {
+          "id": "10017",
+          "name": "In documentation"
+        },
+        {
+          "id": "10018",
+          "name": "Retesting"
+        },
+        {
+          "id": "10019",
+          "name": "Completed"
+        },
+        {
+          "id": "10020",
+          "name": "Canceled"
+        },
+        {
+          "id": "3",
+          "name": "In Progress"
+        }
+      ],
+      "created": "2025-02-25T12:17:31.099-0400",
+      "updated": "2025-02-25T12:45:47.464-0400"
+    },
+    {
+      "id": {
+        "name": "Software Simplified Workflow for Project GG",
+        "entityId": "72a1feab-5c72-42fd-971e-1f60692b70cd"
+      },
+      "description": "Generated by JIRA Software version 1001.0.0-SNAPSHOT. This workflow is managed internally by Jira. Do not manually modify this workflow.",
+      "transitions": [
+        {
+          "id": "1",
+          "name": "Create",
+          "description": "",
+          "from": [],
+          "to": "10006",
+          "type": "initial"
+        },
+        {
+          "id": "11",
+          "name": "To Do",
+          "description": "",
+          "from": [],
+          "to": "10006",
+          "type": "global"
+        },
+        {
+          "id": "21",
+          "name": "In Progress",
+          "description": "",
+          "from": [],
+          "to": "3",
+          "type": "global"
+        },
+        {
+          "id": "31",
+          "name": "Done",
+          "description": "",
+          "from": [],
+          "to": "10007",
+          "type": "global"
+        }
+      ],
+      "statuses": [
+        {
+          "id": "10006",
+          "name": "To Do"
+        },
+        {
+          "id": "10007",
+          "name": "Done"
+        },
+        {
+          "id": "3",
+          "name": "In Progress"
+        }
+      ],
+      "created": "2025-02-06T09:31:27.996-0400",
+      "updated": "2025-02-06T09:31:27.996-0400"
+    }
+  ]
+}
+```
+
+## second parameter:
+```json
+[
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/1",
+    "description": "The issue is open and ready for the assignee to start work on it.",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/open.png",
+    "name": "Undefined",
+    "untranslatedName": "Undefined",
+    "id": "1",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/2",
+      "id": 2,
+      "key": "new",
+      "colorName": "blue-gray",
+      "name": "To Do"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/3",
+    "description": "This issue is being actively worked on at the moment by the assignee.",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/inprogress.png",
+    "name": "In Progress",
+    "untranslatedName": "In Progress",
+    "id": "3",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/4",
+      "id": 4,
+      "key": "indeterminate",
+      "colorName": "yellow",
+      "name": "In Progress"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10003",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/",
+    "name": "IN THE LIBRARY",
+    "untranslatedName": "IN THE LIBRARY",
+    "id": "10003",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/2",
+      "id": 2,
+      "key": "new",
+      "colorName": "blue-gray",
+      "name": "To Do"
+    },
+    "scope": {
+      "type": "PROJECT",
+      "project": {
+        "id": "10001"
+      }
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10004",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/",
+    "name": "WITH THE USER",
+    "untranslatedName": "WITH THE USER",
+    "id": "10004",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/4",
+      "id": 4,
+      "key": "indeterminate",
+      "colorName": "yellow",
+      "name": "In Progress"
+    },
+    "scope": {
+      "type": "PROJECT",
+      "project": {
+        "id": "10001"
+      }
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10005",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/",
+    "name": "OUT OF SERVICE",
+    "untranslatedName": "OUT OF SERVICE",
+    "id": "10005",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/3",
+      "id": 3,
+      "key": "done",
+      "colorName": "green",
+      "name": "Done"
+    },
+    "scope": {
+      "type": "PROJECT",
+      "project": {
+        "id": "10001"
+      }
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10008",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "Archived",
+    "untranslatedName": "Archived",
+    "id": "10008",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/3",
+      "id": 3,
+      "key": "done",
+      "colorName": "green",
+      "name": "Done"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10009",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "Idea",
+    "untranslatedName": "Idea",
+    "id": "10009",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/2",
+      "id": 2,
+      "key": "new",
+      "colorName": "blue-gray",
+      "name": "To Do"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10010",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "Defined",
+    "untranslatedName": "Defined",
+    "id": "10010",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/2",
+      "id": 2,
+      "key": "new",
+      "colorName": "blue-gray",
+      "name": "To Do"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10011",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "Ready for dev",
+    "untranslatedName": "Ready for dev",
+    "id": "10011",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/2",
+      "id": 2,
+      "key": "new",
+      "colorName": "blue-gray",
+      "name": "To Do"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10012",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "On hold",
+    "untranslatedName": "On hold",
+    "id": "10012",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/2",
+      "id": 2,
+      "key": "new",
+      "colorName": "blue-gray",
+      "name": "To Do"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10013",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "In correction",
+    "untranslatedName": "In correction",
+    "id": "10013",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/2",
+      "id": 2,
+      "key": "new",
+      "colorName": "blue-gray",
+      "name": "To Do"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10014",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "Final validation",
+    "untranslatedName": "Final validation",
+    "id": "10014",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/4",
+      "id": 4,
+      "key": "indeterminate",
+      "colorName": "yellow",
+      "name": "In Progress"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10015",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "Testing",
+    "untranslatedName": "Testing",
+    "id": "10015",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/4",
+      "id": 4,
+      "key": "indeterminate",
+      "colorName": "yellow",
+      "name": "In Progress"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10016",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "Pending approbation",
+    "untranslatedName": "Pending approbation",
+    "id": "10016",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/4",
+      "id": 4,
+      "key": "indeterminate",
+      "colorName": "yellow",
+      "name": "In Progress"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10017",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "In documentation",
+    "untranslatedName": "In documentation",
+    "id": "10017",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/4",
+      "id": 4,
+      "key": "indeterminate",
+      "colorName": "yellow",
+      "name": "In Progress"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10018",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "Retesting",
+    "untranslatedName": "Retesting",
+    "id": "10018",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/4",
+      "id": 4,
+      "key": "indeterminate",
+      "colorName": "yellow",
+      "name": "In Progress"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10019",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "Completed",
+    "untranslatedName": "Completed",
+    "id": "10019",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/3",
+      "id": 3,
+      "key": "done",
+      "colorName": "green",
+      "name": "Done"
+    }
+  },
+  {
+    "self": "https://grupogamma1.atlassian.net/rest/api/3/status/10020",
+    "description": "",
+    "iconUrl": "https://grupogamma1.atlassian.net/images/icons/statuses/generic.png",
+    "name": "Canceled",
+    "untranslatedName": "Canceled",
+    "id": "10020",
+    "statusCategory": {
+      "self": "https://grupogamma1.atlassian.net/rest/api/3/statuscategory/3",
+      "id": 3,
+      "key": "done",
+      "colorName": "green",
+      "name": "Done"
+    }
+  }
+]
+```
+
+## output format:
+```json
+{
+   "workflow":{
+      "name":"Migrator",
+      "id":"57e5a3ef-c4ba-472d-87fb-4f1ca549bb3f",
+      "statuses":[
+         {
+            "id":"1",
+            "name":"Undefined"
+         },
+         {
+            "id":"10018",
+            "name":"Completed"
+         },
+         {
+            "id":"10022",
+            "name":"Ready for Development"
+         },
+         {
+            "id":"10023",
+            "name":"Archived"
+         },
+         {
+            "id":"10024",
+            "name":"On Hold"
+         },
+         {
+            "id":"10027",
+            "name":"In Testing"
+         },
+         {
+            "id":"10028",
+            "name":"In Documentation"
+         },
+         {
+            "id":"10029",
+            "name":"Pending on Approbation"
+         },
+         {
+            "id":"10030",
+            "name":"Cancelled"
+         },
+         {
+            "id":"3",
+            "name":"In Progress"
+         }
+      ],
+      "transitions":[
+         {
+            "id":"1",
+            "name":"Create",
+            "from":[
+               
+            ],
+            "to":"1",
+            "type":"initial"
+         },
+         {
+            "id":"211",
+            "name":"Archived",
+            "from":[
+               
+            ],
+            "to":"10023",
+            "type":"global"
+         },
+         {
+            "id":"221",
+            "name":"On Hold",
+            "from":[
+               
+            ],
+            "to":"10024",
+            "type":"global"
+         },
+         {
+            "id":"141",
+            "name":"Issues detected",
+            "from":[
+               "10027"
+            ],
+            "to":"3",
+            "type":"directed"
+         },
+         {
+            "id":"151",
+            "name":"Tests completed",
+            "from":[
+               "10027"
+            ],
+            "to":"10028",
+            "type":"directed"
+         },
+         {
+            "id":"161",
+            "name":"Documentation completed",
+            "from":[
+               "10028"
+            ],
+            "to":"10029",
+            "type":"directed"
+         },
+         {
+            "id":"171",
+            "name":"Task approved",
+            "from":[
+               "10029"
+            ],
+            "to":"10018",
+            "type":"directed"
+         },
+         {
+            "id":"181",
+            "name":"Task cancelled",
+            "from":[
+               "10029"
+            ],
+            "to":"10030",
+            "type":"directed"
+         },
+         {
+            "id":"191",
+            "name":"Task completed",
+            "from":[
+               "10028"
+            ],
+            "to":"10018",
+            "type":"directed"
+         },
+         {
+            "id":"231",
+            "name":"Requirements established",
+            "from":[
+               "1"
+            ],
+            "to":"10022",
+            "type":"directed"
+         },
+         {
+            "id":"241",
+            "name":"Initial tests",
+            "from":[
+               "3"
+            ],
+            "to":"10027",
+            "type":"directed"
+         },
+         {
+            "id":"251",
+            "name":"Task postponed",
+            "from":[
+               "3"
+            ],
+            "to":"10022",
+            "type":"directed"
+         },
+         {
+            "id":"261",
+            "name":"Needs review",
+            "from":[
+               "10022"
+            ],
+            "to":"1",
+            "type":"directed"
+         },
+         {
+            "id":"271",
+            "name":"Needs rework",
+            "from":[
+               "10028",
+               "10029"
+            ],
+            "to":"3",
+            "type":"directed"
+         },
+         {
+            "id":"281",
+            "name":"Task resumed",
+            "from":[
+               "10030"
+            ],
+            "to":"3",
+            "type":"directed"
+         },
+         {
+            "id":"291",
+            "name":"Task incomplete",
+            "from":[
+               "10018"
+            ],
+            "to":"3",
+            "type":"directed"
+         },
+         {
+            "id":"301",
+            "name":"Document directly",
+            "from":[
+               "3"
+            ],
+            "to":"10028",
+            "type":"directed"
+         },
+         {
+            "id":"311",
+            "name":"Task Cancelled",
+            "from":[
+               "10028"
+            ],
+            "to":"10030",
+            "type":"directed"
+         },
+         {
+            "id":"321",
+            "name":"Task retaken",
+            "from":[
+               "10023",
+               "10024"
+            ],
+            "to":"10022",
+            "type":"directed"
+         },
+         {
+            "id":"81",
+            "name":"Development starts",
+            "from":[
+               "10022"
+            ],
+            "to":"3",
+            "type":"directed"
+         }
+      ]
+   }
+}
+```
+Ask any clarifying questions before proceeding.
