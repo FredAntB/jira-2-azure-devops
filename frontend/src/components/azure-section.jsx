@@ -92,7 +92,7 @@ function AzureSection() {
   const deleteToken = async () => {
     const username = localStorage.getItem("username");
     if (!username) {
-      alert("El usuario no ha iniciado sesión.");
+      alert("The user is not logged in.");
       return;
     }
 

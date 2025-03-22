@@ -4,15 +4,16 @@ import loginImage from "../assets/login-image.jpg";
 import { useNavigate } from "react-router-dom";
 import {
   getJiraProjects,
+  getAzureProjects,
   getTokens,
   postLoginCredentials,
-} from "../../utils/api"; // Ensure this import is correct
+} from "../../utils/api";
 
 function Login() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(""); // Manage error state using useState
+  const [error, setError] = useState("");
 
   useEffect(() => {
     document.body.classList.add("login-page");
@@ -23,7 +24,7 @@ function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError(""); // Clear any previous errors
+    setError("");
     try {
       const data = await postLoginCredentials(username, password);
 
@@ -46,16 +47,23 @@ function Login() {
         const tokensResponse = await getTokens(username);
 
         if (tokensResponse.success) {
-          // Store tokens in localStorage or state as needed
           localStorage.setItem("tokens", JSON.stringify(tokensResponse.tokens));
 
-          // Fetch Jira projects after tokens are successfully retrieved
-          const projectsData = await getJiraProjects();
-
-          if (projectsData.length > 0) {
+          // Fetch Jira projects
+          const jiraProjectsData = await getJiraProjects();
+          if (jiraProjectsData.projects.length > 0) {
             localStorage.setItem(
-              "projects",
-              JSON.stringify(projectsData.projects)
+              "jira_projects",
+              JSON.stringify(jiraProjectsData.projects)
+            );
+          }
+
+          // Fetch Azure projects
+          const azureProjectsData = await getAzureProjects();
+          if (azureProjectsData.projects.length > 0) {
+            localStorage.setItem(
+              "azure_projects",
+              JSON.stringify(azureProjectsData.projects)
             );
           }
         }
@@ -63,7 +71,6 @@ function Login() {
         console.log(err);
       }
 
-      // Navigate to the migrate page
       navigate("/migrate");
     } catch (err) {
       console.error("Error en el login:", err);
@@ -87,8 +94,7 @@ function Login() {
           <p className="error-message" style={{ color: "black" }}>
             {error}
           </p>
-        )}{" "}
-        {/* Display error message if exists */}
+        )}
         <form onSubmit={handleLogin}>
           <div className="input-group">
             <input
@@ -114,7 +120,7 @@ function Login() {
             Entrar
           </button>
         </form>
-        <p onClick={() => navigate("/")}> Need to create and account </p>
+        <p onClick={() => navigate("/")}> Need to create an account </p>
       </div>
     </div>
   );

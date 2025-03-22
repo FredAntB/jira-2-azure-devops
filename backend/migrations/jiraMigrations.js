@@ -1,3 +1,4 @@
+import { fstat } from "fs";
 import { retrieveAndWriteCustomFields, retrieveAndWriteWorkflows, retrieveAndWriteIssues } from "../api_calls/index.js";
 import { assert, appendToLogFile } from "../utils/utils.js";
 
@@ -49,6 +50,10 @@ export const migrate = async (url, email, api_token, p_key, log_filepath, total_
         retrieveAndWriteWorkflows(url, email, api_token, p_key, json_filepaths[index], total_filepath)
             .then(() => {
                 appendToLogFile(log_filepath, "Workflows retrieved successfully...");
+                appendToLogFile(log_filepath, "Migration finished...");
+                const data = fs.readFileSync(total_filepath, 'utf-8');
+                data.migrated = data.total;
+                fs.writeFileSync(total_filepath, JSON.stringify(data, null, 2));
             });
     }
     // try {

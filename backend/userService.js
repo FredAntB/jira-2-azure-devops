@@ -8,7 +8,7 @@ export const registerUser = async (username, password) => {
     const [existingUser] = await pool.query('SELECT * FROM user WHERE username = ?', [username]);
 
     if (existingUser.length > 0) {
-        throw new Error('El usuario ya existe, intenta con otro nombre de usuario.');
+        throw new Error('The user already exists, please try another username.');
     }
 
     // Cifrar la contraseña antes de guardarla

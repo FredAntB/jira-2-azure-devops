@@ -71,6 +71,16 @@ export const getJiraProjects = async () => {
     }
 };
 
+export const getAzureProjects = async () => {
+    const response = await api.get("/azure/projects");
+
+    if (response.status === 200) {
+        return response.data;
+    } else {
+        return response.data;
+    }
+};
+
 export const startMigration = async (origin, destination, options) => {
 
     try {

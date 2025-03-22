@@ -60,7 +60,7 @@ function JiraSection() {
   const handleSaveToken = async () => {
     const username = localStorage.getItem("username");
     if (!apiToken || !username) {
-      alert("Falta ingresar el API Token o el usuario no ha iniciado sesión.");
+      alert("API Token is missing or the user is not logged in.");
       return;
     }
 
@@ -90,7 +90,7 @@ function JiraSection() {
   const deleteToken = async () => {
     const username = localStorage.getItem("username");
     if (!username) {
-      alert("El usuario no ha iniciado sesión.");
+      alert("The user has not logged in.");
       return;
     }
 

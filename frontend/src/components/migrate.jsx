@@ -5,7 +5,7 @@ import imageMigrate from "../assets/migrate-image.png";
 import { startMigration } from "../../utils/api";
 import { useNavigate } from "react-router-dom";
 
-import { getJiraProjects } from "../../utils/api";
+import { getJiraProjects, getAzureProjects } from "../../utils/api";
 
 const Migrate = () => {
   const [jiraProject, setJiraProject] = useState("");
@@ -20,14 +20,19 @@ const Migrate = () => {
   const [migrationStatus, setMigrationStatus] = useState(null);
   const navigate = useNavigate();
 
-  const [projects, setProjects] = useState([]);
+  const [jiraProjects, setJiraProjects] = useState([]);
+  const [azureProjects, setAzureProjects] = useState([]);
   useEffect(() => {
     async function retrieveProjects() {
-      const projects = localStorage.getItem("projects");
+      const local_projects = localStorage.getItem("projects");
 
-      if (projects) {
-        const parsedProjects = JSON.parse(projects);
-        setProjects(parsedProjects);
+      if (local_projects) {
+        const parsedProjects = JSON.parse(local_projects);
+        setJiraProjects(parsedProjects.filter((project) => project.key));
+        setAzureProjects(
+          parsedProjects.filter((project) => project.organization)
+        );
+
         setJiraProject(parsedProjects.filter((project) => project.key)[0].key);
 
         const azure_p = parsedProjects.filter(
@@ -38,14 +43,15 @@ const Migrate = () => {
         return;
       }
 
-      const data = await getJiraProjects();
+      const data_jira = await getJiraProjects();
 
-      setProjects(data.projects);
-      setJiraProject(data.projects.filter((project) => project.key)[0].key);
+      setJiraProjects(data_jira.projects);
+      setJiraProject(data_jira.projects[0].key);
 
-      const azure_p = data.projects.filter(
-        (project) => project.organization
-      )[0];
+      const data_azure = await getAzureProjects();
+      setAzureProjects(data_azure.projects);
+
+      const azure_p = data_azure.projects[0];
 
       setAzureProject(`${azure_p.organization}/${azure_p.project}`);
     }
@@ -107,19 +113,16 @@ const Migrate = () => {
           onChange={handleJiraProjectChange}
           onSelect={handleJiraProjectChange}
         >
-          {projects.length === 0 ? (
+          {jiraProjects.length === 0 ? (
             <option value="option1">
               Please register your Jira Credentials First
             </option>
           ) : (
-            <option value="">Select a Jira Project:</option> &&
-            projects
-              .filter((project) => project.key)
-              .map((project) => (
-                <option key={project.id} value={project.key}>
-                  {project.name}
-                </option>
-              ))
+            jiraProjects.map((project) => (
+              <option key={project.id} value={project.key}>
+                {project.name}
+              </option>
+            ))
           )}
         </select>
 
@@ -130,22 +133,20 @@ const Migrate = () => {
           onChange={handleAzureProjectChange}
           onSelect={handleAzureProjectChange}
         >
-          {projects.length === 0 ? (
+          {azureProjects.length === 0 ? (
             <option value="option1">
               Please register your Azure Devops Credentials First
             </option>
           ) : (
             <option value="">Select an Azure Devops Project:</option> &&
-            projects
-              .filter((project) => project.organization)
-              .map((project) => (
-                <option
-                  key={project.project}
-                  value={`${project.organization}/${project.project}`}
-                >
-                  {`${project.organization}/${project.project}`}
-                </option>
-              ))
+            azureProjects.map((project) => (
+              <option
+                key={project.project}
+                value={`${project.organization}/${project.project}`}
+              >
+                {`${project.organization}/${project.project}`}
+              </option>
+            ))
           )}
         </select>
 
