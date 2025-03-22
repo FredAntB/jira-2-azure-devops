@@ -9,7 +9,7 @@ import { readArrayFromJSONFile, getSelectionPaths, emptyArrayFromJSONFile, empty
 import { retrieveAndWriteProjects } from './api_calls/index.js';
 import { decryptToken, encryptToken } from './tokenService.js';
 import { migrate } from './migrations/jiraMigrations.js';
-import { fetchAllProjects } from './azure_functions/projects.js';
+import { fetchAllProjects, migrateData } from './azure_functions/projects.js';
 import { TestsMigration } from './testMigration/TestMigration.js';
 
 
@@ -396,14 +396,13 @@ app.post('/api/migration', async (req, res) => {
 
 
         migrate(URL, EMAIL, JIRA_TOKEN, origin, logFilePath, "./json/total.json", new_options, options_paths)
-        //LUCHO - EYSE AQUI MIGRA?
-        /*.then(() => {
-            const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath);
-            testMigration.migrateTestPlans();
-            testMigration.migrateTestSuites();
-            testMigration.migrateTestCases();
-        });*/
-
+            .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj))
+            .then(() => {
+                const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath);
+                testMigration.migrateTestPlans();
+                testMigration.migrateTestSuites();
+                testMigration.migrateTestCases();
+            });
 
 
         res.status(200).json({
