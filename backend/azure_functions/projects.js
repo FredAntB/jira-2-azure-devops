@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { updateCustomFields } from '../scripts/update_custom_fields.js';
 
 async function getMemberId(token) {
     const url = 'https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=7.1-preview.1';
@@ -53,6 +54,11 @@ async function createCustomFields(token, customFieldsFile, organization) {
     const url = `https://dev.azure.com/${organization}/_apis/wit/fields?api-version=7.0`;
     const customFields = JSON.parse(await fs.readFile(customFieldsFile, 'utf-8'));
 
+    // Validate custom field JSON
+    if (!customFields.name || !customFields.type || !customFields.referenceName) {
+        throw new Error(`Invalid custom field JSON in file: ${customFieldsFile}`);
+    }
+
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -62,7 +68,11 @@ async function createCustomFields(token, customFieldsFile, organization) {
         body: JSON.stringify(customFields)
     });
 
-    if (!response.ok) throw new Error(`Failed to create custom fields: ${response.statusText}`);
+    if (!response.ok) {
+        const errorDetails = await response.text(); // Log detailed error response
+        throw new Error(`Failed to create custom fields: ${response.statusText}. Details: ${errorDetails}`);
+    }
+
     console.log('Custom fields created successfully.');
 }
 
@@ -128,6 +138,10 @@ async function getProcessId(token, organization, processName) {
 
 export async function migrateData(token, customFieldsDir, workflowsDir, issuesDir, organization, project) {
     try {
+        // Update custom fields before migration
+        console.log('Validating and updating custom fields...');
+        await updateCustomFields(customFieldsDir);
+
         const customFieldFiles = await fs.readdir(customFieldsDir);
         for (const file of customFieldFiles) {
             const filePath = path.join(customFieldsDir, file);

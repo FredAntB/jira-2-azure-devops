@@ -2,7 +2,7 @@
   "id": "10000",
   "key": "LIB-1",
   "fields": {
-    "summary": "2020 Scrum Guide",
+    "summary": "2025 Scrum Guide",
     "description": {
       "type": "doc",
       "version": 1,
@@ -40,7 +40,7 @@
       "displayName": "andres gottlieb"
     },
     "created": "2025-02-06T09:56:36.852-0400",
-    "updated": "2025-02-06T10:04:48.880-0400",
+    "updated": "2025-03-21T20:28:40.147-0400",
     "duedate": null,
     "labels": [],
     "components": [],

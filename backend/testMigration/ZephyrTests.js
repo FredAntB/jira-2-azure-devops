@@ -78,12 +78,12 @@ export class ZephyrTests {
         return `<steps id=\"0\" last=\"${testStepsData.total}\"> ${stepsXml}</steps>`;
     }
 
-    async fetchNameFromFullUrl(fullUrl){
+    async fetchNameFromFullUrl(fullUrl) {
         const testData = await this.fetchZephyrData(fullUrl);
         //console.log(testData);
         return testData && testData.name ? testData.name : '';
     }
-    
+
 
     async fetchAndTransformTestCases() {
         const testCasesData = await this.fetchZephyrData(`${this.baseUrl}testcases`);
@@ -96,7 +96,7 @@ export class ZephyrTests {
             const testStepsXml = await this.fetchTestSteps(testCase.key);
             const priority = await this.fetchNameFromFullUrl(testCase.priority.self);
             const issueIds = testCase.links.issues.map(issue => issue.issueId);
-            const priority1 =  this.convertJiraPriorityToAzure(priority);
+            const priority1 = this.convertJiraPriorityToAzure(priority);
             return [
                 {
                     op: "add",
@@ -125,20 +125,24 @@ export class ZephyrTests {
                 }
             ];
         }));
-        //onsole.log(transformedTestCases);
 
         return transformedTestCases;
     }
     convertJiraPriorityToAzure(jiraPriority) {
         const priorityMapping = {
-            "Highest": 1,  // Máxima prioridad
-            "High": 2,     // Alta
-            "Medium": 3,   // Media
-            "Low": 4,      // Baja
-            "Lowest": 5    // Mínima prioridad
+            "Highest": 1,
+            "High": 2,
+            "Medium": 3,
+            "Low": 4,
+            "Lowest": 5
         };
-    
-        return priorityMapping[jiraPriority] || 3; // Por defecto, asignamos prioridad Media (3)
+
+        return priorityMapping[jiraPriority] || 3;
     }
 
+    async getNumOf(field) {
+        const testData = await this.fetchZephyrData(`${this.baseUrl}${field}`);
+        //console.log(Num de ${field}: ${testData.total});
+        return testData && testData.total ? testData.total : 0;
+    }
 }

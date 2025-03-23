@@ -46,6 +46,7 @@ function ZephyrSection() {
           );
           if (zephyrToken) {
             // Llenar los campos con los datos del token de Zephyr
+            console.dir(zephyrToken, { depth: null });
             setApiToken(zephyrToken.Number);
             setEmail(zephyrToken.email);
             setUrl(zephyrToken.url);

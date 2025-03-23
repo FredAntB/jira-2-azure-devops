@@ -5,7 +5,7 @@ import fs from 'fs';
 import axios from 'axios'; // Add axios for lightweight API calls
 import { loginUser, registerUser } from './userService.js';
 import pool from './db.js';
-import { readArrayFromJSONFile, getSelectionPaths, emptyArrayFromJSONFile, emptyLogFile, emptyJSONFile } from './utils/utils.js';
+import { readArrayFromJSONFile, getSelectionPaths, emptyArrayFromJSONFile, emptyLogFile, emptyJSONFile, appendToLogFile } from './utils/utils.js';
 import { retrieveAndWriteProjects } from './api_calls/index.js';
 import { decryptToken, encryptToken } from './tokenService.js';
 import { migrate } from './migrations/jiraMigrations.js';
@@ -184,7 +184,8 @@ app.get('/api/tokens', async (req, res) => {
         if (zephyrToken) {
             const p_1 = zephyrToken.find(token => token.part === 1);
             const p_2 = zephyrToken.find(token => token.part === 2);
-            ZEPHYR_TOKEN = decryptToken(p_1.Number + p_2.Number);
+            ZEPHYR_TOKEN = decryptToken(p_1.Number.concat(p_2.Number));
+            console.dir(`zephyr token is: ${ZEPHYR_TOKEN}`, { depth: null });
             decryptedTokens.push({
                 id: p_1.id,
                 Number: ZEPHYR_TOKEN,
@@ -392,16 +393,27 @@ app.post('/api/migration', async (req, res) => {
         }
         const options_paths = getSelectionPaths(new_options, "./json");
         const logFilePath = "./logfile.log";
-        const { azure_org, azure_proj } = destination.split('/');
+        const [azure_org, azure_proj] = destination.split('/');
+
+        console.log(`azure organization is: ${azure_org}\nazure project is: ${azure_proj}`);
 
 
         migrate(URL, EMAIL, JIRA_TOKEN, origin, logFilePath, "./json/total.json", new_options, options_paths)
-            .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj))
+            // .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj))
             .then(() => {
-                const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath);
-                testMigration.migrateTestPlans();
-                testMigration.migrateTestSuites();
-                testMigration.migrateTestCases();
+                const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath, "./json/total.json");
+                testMigration.migrateTestPlans().then(() => {
+                    return testMigration.migrateTestSuites();
+                }).then(() => {
+                    return testMigration.migrateTestCases();
+                }).then(() => {
+                    appendToLogFile(logFilePath, "Test migration completed successfully.");
+                    appendToLogFile(logFilePath, "Migration completed successfully.");
+                    const totalJsonData = fs.readFileSync('./json/total.json', 'utf-8');
+                    const totalData = JSON.parse(totalJsonData);
+                    totalData.migrated = totalData.total;
+                    fs.writeFileSync('./json/total.json', JSON.stringify(totalData, null, 2));
+                });
             });
 
 
@@ -413,19 +425,6 @@ app.post('/api/migration', async (req, res) => {
 });
 
 app.post('/api/end-migration', async (req, res) => {
-    const { finish } = req.body;
-
-    if (finish) {
-        emptyLogFile("./logfile.log");
-        emptyJSONFile("./json/total.json");
-        res.status(200).json({ message: "Migration ended successfully..." });
-    }
-    else {
-        res.status(400).json({ message: "Tried to end migration forcefully..." });
-    }
-});
-
-app.post('/api/end-migration', bodyParser.json(), async (req, res) => {
     const { finish } = req.body;
 
     if (finish) {
