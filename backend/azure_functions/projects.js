@@ -479,6 +479,11 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
             const newProcessName = 'Custom Workflow Process';
             const newProcessId = await createChildProcess(token, organization, process_id, newProcessName, logfilepath);
 
+            if (!newProcessId) {
+                await appendToLogFile(logfilepath, `Error: Failed to create child process "${newProcessName}". Skipping workflow creation.`);
+                return; // Exit early if the child process ID is undefined
+            }
+
             const workflowFiles = await fs.readdir(workflowsDir);
             for (const file of workflowFiles) {
                 const filePath = path.join(workflowsDir, file);
