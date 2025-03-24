@@ -393,6 +393,11 @@ async function logAvailableWorkItemTypes(token, organization, processName) {
     }
 }
 
+// Utility function to sanitize work item type names
+function sanitizeWorkItemTypeName(name) {
+    return name.replace(/[^a-zA-Z0-9 ]/g, '').trim(); // Remove invalid characters and trim whitespace
+}
+
 export async function migrateData(token, customFieldsDir, workflowsDir, issuesDir, organization, project, logfilepath, totalfilepath) {
     let total_data;
     try {
@@ -436,7 +441,10 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
             }
 
             const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
-            workItemTypes.add(issueData.fields.issuetype.name); // Collect unique workItemTypes
+
+            const rawWorkItemType = issueData.fields.issuetype.name;
+            const sanitizedWorkItemType = sanitizeWorkItemTypeName(rawWorkItemType); // Sanitize work item type name
+            workItemTypes.add(sanitizedWorkItemType); // Collect sanitized work item types
             parsed_total.migrated += 1;
 
             try {
@@ -446,7 +454,7 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
             }
         }
 
-        // Use workItemTypes for workflows creation
+        // Use sanitized workItemTypes for workflows creation
         const workflowFiles = await fs.readdir(workflowsDir);
         for (const file of workflowFiles) {
             const filePath = path.join(workflowsDir, file);
@@ -477,8 +485,9 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
             }
 
             const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
-            const workItemType = issueData.fields.issuetype.name; // Extract work item type from issue JSON
-            await createIssues(token, filePath, organization, project, workItemType, logfilepath);
+            const rawWorkItemType = issueData.fields.issuetype.name;
+            const sanitizedWorkItemType = sanitizeWorkItemTypeName(rawWorkItemType); // Sanitize work item type name
+            await createIssues(token, filePath, organization, project, sanitizedWorkItemType, logfilepath);
         }
 
         await appendToLogFile(logfilepath, 'Data migration completed successfully.');
