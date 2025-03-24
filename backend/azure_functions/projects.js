@@ -174,7 +174,11 @@ async function createIssues(token, issuesFile, organization, project, workItemTy
 
     const payload = [
         { op: 'add', path: '/fields/System.Title', value: issueData.fields.summary },
-        { op: 'add', path: '/fields/System.Description', value: issueData.fields.description.content[0]?.content[0]?.text || '' }
+        {
+            op: 'add',
+            path: '/fields/System.Description',
+            value: issueData.fields.description?.content?.[0]?.content?.[0]?.text || ''
+        }
     ];
 
     if (validatedAssignee) {
@@ -401,7 +405,11 @@ async function createGenericIssue(token, issuesFile, organization, project, gene
 
     const payload = [
         { op: 'add', path: '/fields/System.Title', value: issueData.fields.summary },
-        { op: 'add', path: '/fields/System.Description', value: `${issueData.fields.description.content[0]?.content[0]?.text || ''}\n\nNOTE: This issue was intended to be of type "${intendedWorkItemType}". Please change it manually.` }
+        {
+            op: 'add',
+            path: '/fields/System.Description',
+            value: `${issueData.fields.description?.content?.[0]?.content?.[0]?.text || ''}\n\nNOTE: This issue was intended to be of type "${intendedWorkItemType}". Please change it manually.`
+        }
     ];
 
     try {
