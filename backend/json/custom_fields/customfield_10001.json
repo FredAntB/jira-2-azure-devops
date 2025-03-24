@@ -1,8 +1,0 @@
-{
-  "id": "customfield_10001",
-  "name": "Team",
-  "description": "Associates a team to an issue. You can use this field to search and filter issues by team.",
-  "type": "team",
-  "referenceName": "Custom10001.Team",
-  "usage": "workItem"
-}

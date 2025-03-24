@@ -23,7 +23,9 @@ function JiraSection() {
       if (tokens) {
         // Buscar el token de Jira
         const parsedTokens = JSON.parse(tokens);
-        const jiraToken = parsedTokens.find((token) => token.Application === "Jira");
+        const jiraToken = parsedTokens.find(
+          (token) => token.Application === "Jira"
+        );
         if (jiraToken) {
           // Llenar los campos con los datos del token de Jira
           setApiToken(jiraToken.Number);
@@ -121,7 +123,7 @@ function JiraSection() {
         const deleteResponse = await axios.delete(
           "http://localhost:4000/api/delete-token",
           {
-            data: { username, tokenId: jiraToken.id },
+            data: { username, tokenId: jiraToken.id, splitToken: false },
           }
         );
 

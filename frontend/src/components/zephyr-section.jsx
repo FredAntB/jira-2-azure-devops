@@ -124,7 +124,7 @@ function ZephyrSection() {
         const deleteResponse = await axios.delete(
           "http://localhost:4000/api/delete-token",
           {
-            data: { username, tokenId: zephyrToken.id },
+            data: { username, tokenId: zephyrToken.id, splitToken: true },
           }
         );
 

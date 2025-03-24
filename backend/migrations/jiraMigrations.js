@@ -40,21 +40,20 @@ export const migrate = async (url, email, api_token, p_key, log_filepath, total_
             }
         });
 
-        if (migrate_data.workflows) {
-            promise_wfr.then(() => {
+        const full_promise = promise_wfr.then(() => {
+            if (migrate_data.workflows) {
                 appendToLogFile(log_filepath, "Workflows retrieved successfully...");
-            });
-        }
+            }
+        });
+
+        return full_promise;
     }
     else if (migrate_data.workflows) {
-        retrieveAndWriteWorkflows(url, email, api_token, p_key, json_filepaths[index], total_filepath)
+        const promise_wf = retrieveAndWriteWorkflows(url, email, api_token, p_key, json_filepaths[index], total_filepath)
             .then(() => {
                 appendToLogFile(log_filepath, "Workflows retrieved successfully...");
-                appendToLogFile(log_filepath, "Migration finished...");
-                const data = fs.readFileSync(total_filepath, 'utf-8');
-                data.migrated = data.total;
-                fs.writeFileSync(total_filepath, JSON.stringify(data, null, 2));
             });
+        return promise_wf;
     }
     // try {
     //     assert(migrate_data.every(prop => prop === true), "Not all data is migrated...");

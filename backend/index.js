@@ -281,7 +281,7 @@ app.post('/api/save-token', async (req, res) => {
 // Modify delete-token endpoint
 app.delete('/api/delete-token', async (req, res) => {
     try {
-        const { username, tokenId } = req.body;
+        const { username, tokenId, splitToken } = req.body;
 
         if (!username || !tokenId) {
             return res.status(400).json({ success: false, message: 'Faltan parámetros requeridos.' });
@@ -321,7 +321,13 @@ app.delete('/api/delete-token', async (req, res) => {
         // Delete all parts of the token
         await pool.query('DELETE FROM tokenreg WHERE username = ? AND id = ?', [username, tokenId]);
         await pool.query('DELETE FROM token WHERE id = ?', [tokenId]);
-        await pool.query('DELETE FROM token WHERE id = ? AND part IS NOT NULL', [tokenId]);
+
+        if (splitToken) {
+            // Delete second part of token
+            await pool.query('DELETE FROM tokenreg WHERE username = ? AND id = ?', [username, tokenId + 1]);
+            await pool.query('DELETE FROM token WHERE id = ?', [tokenId + 1]);
+        }
+
 
         res.status(200).json({ success: true, message: 'Token eliminado correctamente' });
     } catch (error) {
@@ -399,22 +405,22 @@ app.post('/api/migration', async (req, res) => {
 
 
         migrate(URL, EMAIL, JIRA_TOKEN, origin, logFilePath, "./json/total.json", new_options, options_paths)
-            // .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj))
-            .then(() => {
-                const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath, "./json/total.json");
-                testMigration.migrateTestPlans().then(() => {
-                    return testMigration.migrateTestSuites();
-                }).then(() => {
-                    return testMigration.migrateTestCases();
-                }).then(() => {
-                    appendToLogFile(logFilePath, "Test migration completed successfully.");
-                    appendToLogFile(logFilePath, "Migration completed successfully.");
-                    const totalJsonData = fs.readFileSync('./json/total.json', 'utf-8');
-                    const totalData = JSON.parse(totalJsonData);
-                    totalData.migrated = totalData.total;
-                    fs.writeFileSync('./json/total.json', JSON.stringify(totalData, null, 2));
-                });
-            });
+            .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj));
+        // .then(() => {
+        //     const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath, "./json/total.json");
+        //     testMigration.migrateTestPlans().then(() => {
+        //         return testMigration.migrateTestSuites();
+        //     }).then(() => {
+        //         return testMigration.migrateTestCases();
+        //     }).then(() => {
+        //         appendToLogFile(logFilePath, "Test migration completed successfully.");
+        //         appendToLogFile(logFilePath, "Migration completed successfully.");
+        //         const totalJsonData = fs.readFileSync('./json/total.json', 'utf-8');
+        //         const totalData = JSON.parse(totalJsonData);
+        //         totalData.migrated = totalData.total;
+        //         fs.writeFileSync('./json/total.json', JSON.stringify(totalData, null, 2));
+        //     });
+        // });
 
 
         res.status(200).json({
