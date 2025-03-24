@@ -1,3 +1,16 @@
 {
-  "projects": []
+  "projects": [
+    {
+      "organization": "antoniomendozaupb",
+      "project": "GammaTest"
+    },
+    {
+      "organization": "antoniomendozaupb",
+      "project": "LIBTEST"
+    },
+    {
+      "organization": "antoniomendozaupb0628",
+      "project": "tester-part2"
+    }
+  ]
 }

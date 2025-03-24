@@ -34,6 +34,17 @@ async function getProjects(organization, token) {
     return data.value.map(proj => ({ organization: organization, project: proj.name }));
 }
 
+async function getProcessFromProcessList(token, organization, process_name) {
+    const url = `https://dev.azure.com/${organization}/_apis/process/processes?api-version=7.1`;
+    const response = await fetch(url, {
+        headers: { 'Authorization': `Basic ${Buffer.from(':' + token).toString('base64')}` }
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+    const data = await response.json();
+    return data.value.find(process => process.name === process_name)?.id;
+}
+
 export async function fetchAllProjects(token) {
     try {
         const memberId = await getMemberId(token);
@@ -127,28 +138,6 @@ async function createCustomFields(token, customFieldsFile, organization, logfile
     await appendToLogFile(logfilepath, `Custom field '${customFields.name}' created successfully.`);
 }
 
-// Fix for missing assignee field in createIssues
-async function validateAssignee(token, organization, assignee) {
-    if (!assignee) return null;
-
-    const url = `https://vssps.dev.azure.com/${organization}/_apis/graph/users?api-version=7.1-preview.1`;
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `Basic ${Buffer.from(':' + token).toString('base64')}`,
-            'Content-Type': 'application/json'
-        }
-    });
-
-    if (!response.ok) {
-        console.error(`Failed to validate assignee: ${response.statusText}`);
-        return null;
-    }
-
-    const data = await response.json();
-    const user = data.value.find(user => user.displayName === assignee);
-    return user ? assignee : null; // Return the assignee if found, otherwise null
-}
-
 async function createIssues(token, issuesFile, organization, project, workItemType, logfilepath) {
     // Change "Story" to "User Story" for the creation process
     if (workItemType === "Story") {
@@ -189,29 +178,6 @@ async function createIssues(token, issuesFile, organization, project, workItemTy
     } catch (error) {
         await appendToLogFile(logfilepath, `Error creating issue for workItemType: ${workItemType}. ${error.message}`);
     }
-}
-
-async function validateWorkItemType(token, organization, processId, workItemType) {
-    const url = `https://dev.azure.com/${organization}/_apis/work/processes/${processId}/workItemTypes?api-version=7.0`;
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `Basic ${Buffer.from(':' + token).toString('base64')}`,
-            'Content-Type': 'application/json'
-        }
-    });
-
-    if (!response.ok) {
-        const errorDetails = await response.text();
-        console.error(`Failed to fetch work item types: ${response.statusText}. Details: ${errorDetails}`);
-        return false;
-    }
-
-    const data = await response.json();
-    const isValid = data.value.some(type => type.name === workItemType);
-    if (!isValid) {
-        console.error(`WorkItemType "${workItemType}" is not valid for processId: ${processId}`);
-    }
-    return isValid;
 }
 
 async function createWorkflows(token, workflowsFile, organization, processId, workItemType, logfilepath) {
@@ -282,59 +248,6 @@ async function getProcessId(token, organization, processName) {
     return process.id;
 }
 
-async function getParentProcessId(token, organization, parentProcessName = "Agile") {
-    const url = `https://dev.azure.com/${organization}/_apis/work/processes?api-version=7.0`;
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `Basic ${Buffer.from(':' + token).toString('base64')}`
-        }
-    });
-
-    if (!response.ok) {
-        const errorDetails = await response.text();
-        throw new Error(`Failed to fetch parent processes: ${response.statusText}. Details: ${errorDetails}`);
-    }
-
-    const data = await response.json();
-    const parentProcess = data.value.find(proc => proc.name === parentProcessName);
-    if (!parentProcess) {
-        throw new Error(`Parent process "${parentProcessName}" not found.`);
-    }
-
-    return parentProcess.typeId; // Return the parent process type ID
-}
-
-async function createProcess(token, organization, processName, parentProcessName = "Agile") {
-    const parentProcessTypeId = await getParentProcessId(token, organization, parentProcessName);
-
-    const url = `https://dev.azure.com/${organization}/_apis/work/processes?api-version=7.0`;
-    const payload = {
-        name: processName,
-        description: `Process created for workflow: ${processName}`,
-        type: "custom",
-        parentProcessTypeId // Include the parent process type ID
-    };
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Basic ${Buffer.from(':' + token).toString('base64')}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-        const errorDetails = await response.text();
-        throw new Error(`Failed to create process: ${response.statusText}. Details: ${errorDetails}`);
-    }
-
-    const data = await response.json();
-    console.log(`Process "${processName}" created successfully.`);
-    return data.id; // Return the newly created process ID
-}
-
-// Fix for processId retrieval
 async function getOrCreateProcessId(token, organization, processName) {
     try {
         // Try to get the process ID
@@ -382,19 +295,118 @@ async function getWorkItemTypes(token, organization, processId) {
     return data.value.map(type => type.name); // Return the list of work item type names
 }
 
-// Example usage
-async function logAvailableWorkItemTypes(token, organization, processName) {
+function cleanWorkItemTypeName(name) {
+    // Remove invalid characters and trim the name
+    return name
+        .replace(/[.,;~:/\\*|?"&%$!+=()\[\]{}<>-์]/g, '') // Remove invalid characters
+        .replace(/^\d+$/, '') // Prevent names that are only numbers
+        .trim() // Trim whitespace
+        .substring(0, 128); // Ensure the name does not exceed 128 characters
+}
+
+async function createWorkItemType(token, organization, processId, workItemType, logfilepath) {
+    const cleanedName = cleanWorkItemTypeName(workItemType);
+    if (!cleanedName) {
+        console.error(`Invalid work item type name "${workItemType}" after cleaning. Skipping creation.`);
+        await appendToLogFile(logfilepath, `Invalid work item type name "${workItemType}" after cleaning. Skipping creation.`);
+        return;
+    }
+
+    const url = `https://dev.azure.com/${organization}/_apis/work/processes/${processId}/workitemtypes?api-version=7.1`;
+    const payload = {
+        "name": cleanedName,
+        "description": `Work item type for ${cleanedName}`,
+        "color": "009CCC", // Default color
+        "icon": "icon_book", // Default icon
+        "isDisabled": false,
+        "inheritsFrom": null
+    };
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${Buffer.from(':' + token).toString('base64')}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const errorDetails = await response.text();
+        if (response.status === 403) {
+            console.error(`Permission error: Unable to create work item type "${cleanedName}". Details: ${errorDetails}`);
+            await appendToLogFile(logfilepath, `Permission error: Unable to create work item type "${cleanedName}". Skipping.`);
+            return; // Skip creation if permissions are insufficient
+        }
+        throw new Error(`Failed to create work item type: ${response.statusText}. Details: ${errorDetails}`);
+    }
+
+    console.log(`Work item type "${cleanedName}" created successfully.`);
+}
+
+async function createChildProcess(token, organization, parentProcessId, childProcessName, logfilepath) {
+    const url = `https://dev.azure.com/${organization}/_apis/work/processes?api-version=7.0`;
+    const payload = {
+        name: childProcessName,
+        description: `Child process created for ${parentProcessId}`,
+        type: "custom",
+        parentProcessTypeId: parentProcessId
+    };
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${Buffer.from(':' + token).toString('base64')}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Failed to create child process: ${response.statusText}. Details: ${errorDetails}`);
+    }
+
+    const data = await response.json();
+    console.log(`Child process "${childProcessName}" created successfully.`);
+    await appendToLogFile(logfilepath, `Child process "${childProcessName}" created successfully.`);
+    return data.id; // Return the newly created child process ID
+}
+
+async function createGenericIssue(token, issuesFile, organization, project, genericWorkItemType, intendedWorkItemType, logfilepath) {
+    const url = `https://dev.azure.com/${organization}/${project}/_apis/wit/workitems/$${genericWorkItemType}?api-version=7.0`;
+    const issueData = JSON.parse(await fs.readFile(issuesFile, 'utf-8'));
+
+    const payload = [
+        { op: 'add', path: '/fields/System.Title', value: issueData.fields.summary },
+        { op: 'add', path: '/fields/System.Description', value: `${issueData.fields.description.content[0]?.content[0]?.text || ''}\n\nNOTE: This issue was intended to be of type "${intendedWorkItemType}". Please change it manually.` }
+    ];
+
     try {
-        const processId = await getProcessId(token, organization, processName);
-        const workItemTypes = await getWorkItemTypes(token, organization, processId);
-        console.log(`Work Item Types for process "${processName}":`, workItemTypes);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${Buffer.from(':' + token).toString('base64')}`,
+                'Content-Type': 'application/json-patch+json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorDetails = await response.text();
+            throw new Error(`Failed to create generic issue: ${response.statusText}. Details: ${errorDetails}`);
+        }
+
+        await appendToLogFile(logfilepath, `Generic issue created successfully. Intended work item type: "${intendedWorkItemType}".`);
     } catch (error) {
-        console.error("Error fetching work item types:", error.message);
+        await appendToLogFile(logfilepath, `Error creating generic issue for intended work item type: "${intendedWorkItemType}". ${error.message}`);
     }
 }
 
 export async function migrateData(token, customFieldsDir, workflowsDir, issuesDir, organization, project, logfilepath) {
     try {
+        const process_id = await getProcessFromProcessList(token, organization, 'Agile');
+
         // Update custom fields before migration
         await appendToLogFile(logfilepath, 'Validating and updating custom fields...');
         await updateCustomFields(customFieldsDir);
@@ -414,29 +426,45 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
             workItemTypes.add(issueData.fields.issuetype.name); // Collect unique workItemTypes
         }
 
-        // Use workItemTypes for workflows creation
-        const workflowFiles = await fs.readdir(workflowsDir);
-        for (const file of workflowFiles) {
-            const filePath = path.join(workflowsDir, file);
-            const workflowData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
+        // Ensure all workItemTypes exist in the base process
+        const existingWorkItemTypes = await getWorkItemTypes(token, organization, process_id);
+        const missingWorkItemTypes = [...workItemTypes].filter(type => !existingWorkItemTypes.includes(type));
 
-            try {
-                const processId = await getOrCreateProcessId(token, organization, workflowData.name);
-                for (const workItemType of workItemTypes) {
-                    await appendToLogFile(logfilepath, `Creating workflow for processId: ${processId}, workItemType: ${workItemType}`);
-                    await createWorkflows(token, filePath, organization, processId, workItemType, logfilepath);
-                }
-            } catch (error) {
-                await appendToLogFile(logfilepath, `Error processing workflow "${workflowData.name}": ${error.message}`);
-            }
-        }
-
-        // Create issues
+        // Create issues with generic work item type for missing types
+        const genericWorkItemType = 'Task';
         for (const file of issueFiles) {
             const filePath = path.join(issuesDir, file);
             const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
-            const workItemType = issueData.fields.issuetype.name; // Extract work item type from issue JSON
-            await createIssues(token, filePath, organization, project, workItemType, logfilepath);
+            const workItemType = issueData.fields.issuetype.name;
+
+            if (missingWorkItemTypes.includes(workItemType)) {
+                await createGenericIssue(token, filePath, organization, project, genericWorkItemType, workItemType, logfilepath);
+            } else {
+                await createIssues(token, filePath, organization, project, workItemType, logfilepath);
+            }
+        }
+
+        // Create a new child process for workflows with missing work item types
+        if (missingWorkItemTypes.length > 0) {
+            const newProcessName = 'Custom Workflow Process';
+            const newProcessId = await createChildProcess(token, organization, process_id, newProcessName, logfilepath);
+
+            const workflowFiles = await fs.readdir(workflowsDir);
+            for (const file of workflowFiles) {
+                const filePath = path.join(workflowsDir, file);
+                const workflowData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
+
+                try {
+                    for (const workItemType of missingWorkItemTypes) {
+                        await appendToLogFile(logfilepath, `Creating workflow for processId: ${newProcessId}, workItemType: ${workItemType}`);
+                        await createWorkflows(token, filePath, organization, newProcessId, workItemType, logfilepath);
+                    }
+                } catch (error) {
+                    await appendToLogFile(logfilepath, `Error processing workflow "${workflowData.name}": ${error.message}`);
+                }
+            }
+
+            await appendToLogFile(logfilepath, `A new process "${newProcessName}" was created for workflows with missing work item types.`);
         }
 
         await appendToLogFile(logfilepath, 'Data migration completed successfully.');
