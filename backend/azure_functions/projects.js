@@ -418,7 +418,12 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
             const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
             workItemTypes.add(issueData.fields.issuetype.name); // Collect unique workItemTypes
             parsed_total.migrated += 1;
-            await fs.writeFile(totalfilepath, JSON.stringify(parsed_total, null, 2));
+
+            try {
+                await fs.writeFile(totalfilepath, JSON.stringify(parsed_total, null, 2), 'utf-8');
+            } catch (error) {
+                console.error(`Failed to write to file ${totalfilepath}:`, error.message);
+            }
         }
 
         // Use workItemTypes for workflows creation
