@@ -1,4 +1,5 @@
 import { getHttpRequest } from '../utils/utils.js';
+import cleanCustomFieldName from '../scripts/cleanCustomFieldName.js'; // Ensure this is the correct import path
 
 const retrieveCustomFields = async (url, email, api_token) => {
     let startAt = 0;
@@ -34,12 +35,18 @@ const cleanCustomFields = async (customFields) => {
     let fields = [];
 
     customFields.forEach(field => {
+        const cleanedName = cleanCustomFieldName(field.name); // Use the corrected function
+        if (!cleanedName.trim()) {
+            console.error(`❌ Invalid custom field name: "${field.name}"`);
+            return; // Skip invalid fields
+        }
+
         fields.push({
             id: field.id,
-            name: field.name,
+            name: cleanedName,
             description: field.description,
             type: field.schema.type,
-            referenceName: `Custom${field.schema.customId}.${field.name}`,
+            referenceName: `Custom${field.schema.customId}.${cleanedName}`,
             usage: "workItem"
         });
     });

@@ -123,7 +123,7 @@ function AzureSection() {
         const deleteResponse = await axios.delete(
           "http://localhost:4000/api/delete-token",
           {
-            data: { username, tokenId: azureToken.id },
+            data: { username, tokenId: azureToken.id, splitToken: false },
           }
         );
 
