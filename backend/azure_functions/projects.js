@@ -138,6 +138,28 @@ async function createCustomFields(token, customFieldsFile, organization, logfile
     await appendToLogFile(logfilepath, `Custom field '${customFields.name}' created successfully.`);
 }
 
+// Fix for missing assignee field in createIssues
+async function validateAssignee(token, organization, assignee) {
+    if (!assignee) return null;
+
+    const url = `https://vssps.dev.azure.com/${organization}/_apis/graph/users?api-version=7.1-preview.1`;
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Basic ${Buffer.from(':' + token).toString('base64')}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        console.error(`Failed to validate assignee: ${response.statusText}`);
+        return null;
+    }
+
+    const data = await response.json();
+    const user = data.value.find(user => user.displayName === assignee);
+    return user ? assignee : null; // Return the assignee if found, otherwise null
+}
+
 async function createIssues(token, issuesFile, organization, project, workItemType, logfilepath) {
     // Change "Story" to "User Story" for the creation process
     if (workItemType === "Story") {
