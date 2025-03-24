@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { updateCustomFields } from '../scripts/update_custom_fields.js';
 import cleanCustomFieldName from '../scripts/cleanCustomFieldName.js';
+import { appendToLogFile } from '../utils/utils.js';
 
 async function getMemberId(token) {
     const url = 'https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=7.1-preview.1';
@@ -78,7 +79,7 @@ async function fieldExists(token, organization, referenceName, fieldName) {
     return allFieldsData.value.some(field => field.name === fieldName);
 }
 
-async function createCustomFields(token, customFieldsFile, organization) {
+async function createCustomFields(token, customFieldsFile, organization, logfilepath) {
     const url = `https://dev.azure.com/${organization}/_apis/wit/fields?api-version=7.0`;
     let customFields;
 
@@ -101,7 +102,7 @@ async function createCustomFields(token, customFieldsFile, organization) {
     // Check if the field already exists by referenceName or name
     const exists = await fieldExists(token, organization, customFields.referenceName, customFields.name);
     if (exists) {
-        console.log(`Custom field '${customFields.name}' already exists. Skipping creation.`);
+        await appendToLogFile(logfilepath, `Custom field '${customFields.name}' already exists. Skipping creation.`);
         return;
     }
 
@@ -117,13 +118,13 @@ async function createCustomFields(token, customFieldsFile, organization) {
     if (!response.ok) {
         const errorDetails = await response.text();
         if (errorDetails.includes(`Field name '${customFields.name}' you specified is already in use`)) {
-            console.log(`Custom field '${customFields.name}' already exists (detected by error message). Skipping creation.`);
+            await appendToLogFile(logfilepath, `Custom field '${customFields.name}' already exists (detected by error message). Skipping creation.`);
             return;
         }
         throw new Error(`Failed to create custom fields: ${response.statusText}. Details: ${errorDetails}`);
     }
 
-    console.log(`Custom field '${customFields.name}' created successfully.`);
+    await appendToLogFile(logfilepath, `Custom field '${customFields.name}' created successfully.`);
 }
 
 // Fix for missing assignee field in createIssues
@@ -148,7 +149,7 @@ async function validateAssignee(token, organization, assignee) {
     return user ? assignee : null; // Return the assignee if found, otherwise null
 }
 
-async function createIssues(token, issuesFile, organization, project, workItemType) {
+async function createIssues(token, issuesFile, organization, project, workItemType, logfilepath) {
     // Change "Story" to "User Story" for the creation process
     if (workItemType === "Story") {
         workItemType = "User Story";
@@ -184,9 +185,9 @@ async function createIssues(token, issuesFile, organization, project, workItemTy
             throw new Error(`Failed to create issue: ${response.statusText}. Details: ${errorDetails}`);
         }
 
-        console.log('Issue created successfully.');
+        await appendToLogFile(logfilepath, `Issue created successfully. Issue key: ${issueData.key}`);
     } catch (error) {
-        console.error(`Error creating issue for workItemType: ${workItemType}`, error.message);
+        await appendToLogFile(logfilepath, `Error creating issue for workItemType: ${workItemType}. ${error.message}`);
     }
 }
 
@@ -213,9 +214,9 @@ async function validateWorkItemType(token, organization, processId, workItemType
     return isValid;
 }
 
-async function createWorkflows(token, workflowsFile, organization, processId, workItemType) {
+async function createWorkflows(token, workflowsFile, organization, processId, workItemType, logfilepath) {
     if (!processId) {
-        console.error(`Error: processId is undefined for workItemType: ${workItemType}. Skipping workflow creation.`);
+        await appendToLogFile(logfilepath, `Error: processId is undefined for workItemType: ${workItemType}. Skipping workflow creation.`);
         return;
     }
 
@@ -227,7 +228,7 @@ async function createWorkflows(token, workflowsFile, organization, processId, wo
     // Validate the workItemType before proceeding
     const isValidWorkItemType = await validateWorkItemType(token, organization, processId, workItemType);
     if (!isValidWorkItemType) {
-        console.error(`Skipping workflow creation for invalid workItemType: ${workItemType}`);
+        await appendToLogFile(logfilepath, `Skipping workflow creation for invalid workItemType: ${workItemType}`);
         return;
     }
 
@@ -236,7 +237,7 @@ async function createWorkflows(token, workflowsFile, organization, processId, wo
 
     for (const status of workflowData.statuses) {
         try {
-            console.log(`Creating workflow status: ${status.name} for processId: ${processId}, workItemType: ${workItemType}`);
+            await appendToLogFile(logfilepath, `Creating workflow status: ${status.name} for processId: ${processId}, workItemType: ${workItemType}`);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -251,13 +252,13 @@ async function createWorkflows(token, workflowsFile, organization, processId, wo
 
             if (!response.ok) {
                 const errorDetails = await response.text();
-                console.error(`Failed to create workflow status: ${response.statusText}. Details: ${errorDetails}`);
+                await appendToLogFile(logfilepath, `Failed to create workflow status: ${response.statusText}. Details: ${errorDetails}`);
                 throw new Error(`Failed to create workflow status: ${status.name}`);
             }
 
-            console.log(`Workflow status "${status.name}" created successfully.`);
+            await appendToLogFile(logfilepath, `Workflow status "${status.name}" created successfully.`);
         } catch (error) {
-            console.error(`Error creating workflow status "${status.name}":`, error.message);
+            await appendToLogFile(logfilepath, `Error creating workflow status "${status.name}": ${error.message}`);
         }
     }
 }
@@ -392,16 +393,16 @@ async function logAvailableWorkItemTypes(token, organization, processName) {
     }
 }
 
-export async function migrateData(token, customFieldsDir, workflowsDir, issuesDir, organization, project) {
+export async function migrateData(token, customFieldsDir, workflowsDir, issuesDir, organization, project, logfilepath) {
     try {
         // Update custom fields before migration
-        console.log('Validating and updating custom fields...');
+        await appendToLogFile(logfilepath, 'Validating and updating custom fields...');
         await updateCustomFields(customFieldsDir);
 
         const customFieldFiles = await fs.readdir(customFieldsDir);
         for (const file of customFieldFiles) {
             const filePath = path.join(customFieldsDir, file);
-            await createCustomFields(token, filePath, organization);
+            await createCustomFields(token, filePath, organization, logfilepath);
         }
 
         // Retrieve all workItemTypes from issue JSON files
@@ -422,11 +423,11 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
             try {
                 const processId = await getOrCreateProcessId(token, organization, workflowData.name);
                 for (const workItemType of workItemTypes) {
-                    console.log(`Creating workflow for processId: ${processId}, workItemType: ${workItemType}`);
-                    await createWorkflows(token, filePath, organization, processId, workItemType);
+                    await appendToLogFile(logfilepath, `Creating workflow for processId: ${processId}, workItemType: ${workItemType}`);
+                    await createWorkflows(token, filePath, organization, processId, workItemType, logfilepath);
                 }
             } catch (error) {
-                console.error(`Error processing workflow "${workflowData.name}":`, error.message);
+                await appendToLogFile(logfilepath, `Error processing workflow "${workflowData.name}": ${error.message}`);
             }
         }
 
@@ -435,11 +436,11 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
             const filePath = path.join(issuesDir, file);
             const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
             const workItemType = issueData.fields.issuetype.name; // Extract work item type from issue JSON
-            await createIssues(token, filePath, organization, project, workItemType);
+            await createIssues(token, filePath, organization, project, workItemType, logfilepath);
         }
 
-        console.log('Data migration completed successfully.');
+        await appendToLogFile(logfilepath, 'Data migration completed successfully.');
     } catch (error) {
-        console.error('Error during migration:', error.message);
+        await appendToLogFile(logfilepath, `Error during migration: ${error.message}`);
     }
 }

@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 export default function MigrationProgress() {
   const [isCompleted, setIsCompleted] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [logs, setLogs] = useState(["Iniciando migración..."]);
+  const [logs, setLogs] = useState(["Starting migration..."]);
   const navigate = useNavigate();
 
   const handleEndMigration = async () => {
