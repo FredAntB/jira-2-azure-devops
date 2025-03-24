@@ -1,14 +1,3 @@
 {
-  "projects": [
-    {
-      "name": "Grupo Gamma",
-      "id": "10002",
-      "key": "GG"
-    },
-    {
-      "name": "Library",
-      "id": "10001",
-      "key": "LIB"
-    }
-  ]
+  "projects": []
 }
