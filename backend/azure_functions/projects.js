@@ -393,7 +393,10 @@ async function logAvailableWorkItemTypes(token, organization, processName) {
     }
 }
 
-export async function migrateData(token, customFieldsDir, workflowsDir, issuesDir, organization, project, logfilepath) {
+export async function migrateData(token, customFieldsDir, workflowsDir, issuesDir, organization, project, logfilepath, totalfilepath) {
+    const total_data = await fs.readFile(totalfilepath, 'utf-8');
+    const parsed_total = JSON.parse(total_data);
+
     try {
         // Update custom fields before migration
         await appendToLogFile(logfilepath, 'Validating and updating custom fields...');
@@ -403,6 +406,8 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
         for (const file of customFieldFiles) {
             const filePath = path.join(customFieldsDir, file);
             await createCustomFields(token, filePath, organization, logfilepath);
+            parsed_total.migrated += 1;
+            await fs.writeFile(totalfilepath, JSON.stringify(parsed_total, null, 2));
         }
 
         // Retrieve all workItemTypes from issue JSON files
@@ -412,6 +417,8 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
             const filePath = path.join(issuesDir, file);
             const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
             workItemTypes.add(issueData.fields.issuetype.name); // Collect unique workItemTypes
+            parsed_total.migrated += 1;
+            await fs.writeFile(totalfilepath, JSON.stringify(parsed_total, null, 2));
         }
 
         // Use workItemTypes for workflows creation
