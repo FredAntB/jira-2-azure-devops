@@ -394,7 +394,17 @@ async function logAvailableWorkItemTypes(token, organization, processName) {
 }
 
 export async function migrateData(token, customFieldsDir, workflowsDir, issuesDir, organization, project, logfilepath, totalfilepath) {
-    const total_data = await fs.readFile(totalfilepath, 'utf-8');
+    let total_data;
+    try {
+        if (!totalfilepath || typeof totalfilepath !== 'string') {
+            throw new Error(`Invalid totalfilepath: ${totalfilepath}`);
+        }
+        total_data = await fs.readFile(totalfilepath, 'utf-8');
+    } catch (error) {
+        console.error(`Failed to read total file: ${error.message}`);
+        return;
+    }
+
     const parsed_total = JSON.parse(total_data);
 
     try {
@@ -405,9 +415,14 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
         const customFieldFiles = await fs.readdir(customFieldsDir);
         for (const file of customFieldFiles) {
             const filePath = path.join(customFieldsDir, file);
+            if (!filePath || typeof filePath !== 'string') {
+                console.error(`Invalid custom field file path: ${filePath}`);
+                continue;
+            }
+
             await createCustomFields(token, filePath, organization, logfilepath);
             parsed_total.migrated += 1;
-            await fs.writeFile(totalfilepath, JSON.stringify(parsed_total, null, 2));
+            await fs.writeFile(totalfilepath, JSON.stringify(parsed_total, null, 2), 'utf-8');
         }
 
         // Retrieve all workItemTypes from issue JSON files
@@ -415,6 +430,11 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
         const workItemTypes = new Set();
         for (const file of issueFiles) {
             const filePath = path.join(issuesDir, file);
+            if (!filePath || typeof filePath !== 'string') {
+                console.error(`Invalid issue file path: ${filePath}`);
+                continue;
+            }
+
             const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
             workItemTypes.add(issueData.fields.issuetype.name); // Collect unique workItemTypes
             parsed_total.migrated += 1;
@@ -430,6 +450,11 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
         const workflowFiles = await fs.readdir(workflowsDir);
         for (const file of workflowFiles) {
             const filePath = path.join(workflowsDir, file);
+            if (!filePath || typeof filePath !== 'string') {
+                console.error(`Invalid workflow file path: ${filePath}`);
+                continue;
+            }
+
             const workflowData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
 
             try {
@@ -446,6 +471,11 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
         // Create issues
         for (const file of issueFiles) {
             const filePath = path.join(issuesDir, file);
+            if (!filePath || typeof filePath !== 'string') {
+                console.error(`Invalid issue file path: ${filePath}`);
+                continue;
+            }
+
             const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
             const workItemType = issueData.fields.issuetype.name; // Extract work item type from issue JSON
             await createIssues(token, filePath, organization, project, workItemType, logfilepath);
