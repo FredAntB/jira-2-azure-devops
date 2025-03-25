@@ -406,22 +406,24 @@ app.post('/api/migration', async (req, res) => {
         }
 
         migrate(URL, EMAIL, JIRA_TOKEN, origin, logFilePath, "./json/total.json", new_options, options_paths)
-            .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj, logFilePath));
-        // .then(() => {
-        //     const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath, "./json/total.json");
-        //     testMigration.migrateTestPlans().then(() => {
-        //         return testMigration.migrateTestSuites();
-        //     }).then(() => {
-        //         return testMigration.migrateTestCases();
-        //     }).then(() => {
-        //         appendToLogFile(logFilePath, "Test migration completed successfully.");
-        //         appendToLogFile(logFilePath, "Migration completed successfully.");
-        //         const totalJsonData = fs.readFileSync('./json/total.json', 'utf-8');
-        //         const totalData = JSON.parse(totalJsonData);
-        //         totalData.migrated = totalData.total;
-        //         fs.writeFileSync('./json/total.json', JSON.stringify(totalData, null, 2));
-        //     });
-        // });
+            .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj, logFilePath))
+            .then(() => {
+                const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath, "./json/total.json");
+                testMigration.migrateTestPlans().then(() => {
+                    return testMigration.migrateTestSuites();
+                }).then(() => {
+                    return testMigration.migrateTestCases();
+                }).then(() => {
+                    appendToLogFile(logFilePath, "Test migration completed successfully.");
+                });
+            })
+            .then(() => {
+                appendToLogFile(logFilePath, "Migration completed successfully.");
+                const totalJsonData = fs.readFileSync('./json/total.json', 'utf-8');
+                const totalData = JSON.parse(totalJsonData);
+                totalData.migrated = totalData.total;
+                fs.writeFileSync('./json/total.json', JSON.stringify(totalData, null, 2));
+            });
 
 
         res.status(200).json({
