@@ -446,7 +446,7 @@ app.post('/api/migration', authMiddleware, validateMigrationRequest, async (req,
             }
 
             migrate(URL, EMAIL, JIRA_TOKEN, origin, logFilePath, "./json/total.json", new_options, options_paths)
-                .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj, logFilePath))
+                .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj, logFilePath, "./json/total.json"))
                 .then(() => {
                     const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath, "./json/total.json");
                     testMigration.migrateTestPlans().then(() => {
