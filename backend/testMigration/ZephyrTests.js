@@ -97,7 +97,11 @@ export class ZephyrTests {
             const priority = await this.fetchNameFromFullUrl(testCase.priority.self);
             const issueIds = testCase.links.issues.map(issue => issue.issueId);
             const priority1 = this.convertJiraPriorityToAzure(priority);
-            return [
+
+            // Extract the testCycleId from the Zephyr test case links
+            const testCycleId = testCase.links?.testCycles?.[0]?.testCycleId ?? null;
+
+            const patchOps = [
                 {
                     op: "add",
                     path: "/fields/System.Title",
@@ -124,6 +128,8 @@ export class ZephyrTests {
                     value: "Importado;Zephyr"
                 }
             ];
+
+            return { patchOps, testCycleId };
         }));
 
         return transformedTestCases;
