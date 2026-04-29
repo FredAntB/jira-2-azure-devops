@@ -139,7 +139,7 @@ app._router.stack.forEach((r) => {
     }
 });
 
-// ruta para registro del usuario 
+// Register a new user
 app.post('/api/register', async (req, res) => {
     console.log("📩 Received POST request at /api/register");
 
@@ -147,27 +147,26 @@ app.post('/api/register', async (req, res) => {
         const { username, password } = req.body;
 
         if (!username || !password) {
-            return res.status(400).json({ success: false, message: "Missing username or password" });
+            return res.status(400).json({ success: false, message: "Missing username or password." });
         }
 
         await registerUser(username, password);
-        res.json({ success: true, message: "Usuario registrado con éxito" });
+        res.json({ success: true, message: "User registered successfully." });
     } catch (error) {
         console.error("❌ Error in /api/register:", error.message);
         res.status(400).json({ success: false, message: error.message });
     }
 });
 
-// ruta para login del user
+// Login and return JWT
 app.post('/api/login', async (req, res) => {
-    console.dir(req, { depth: null });
     try {
         const { username, password } = req.body;
         const user = await loginUser(username, password);
-        res.status(200).json({ success: true, user: user.username });
+        res.status(200).json({ success: true, token: user.token, user: user.username });
     } catch (error) {
         console.error("❌ Login error:", error.message);
-        res.status(401).json({ success: false, message: "Unable to login" });
+        res.status(401).json({ success: false, message: "Invalid credentials." });
     }
 });
 
