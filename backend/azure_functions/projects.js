@@ -4,6 +4,17 @@ import { updateCustomFields } from '../scripts/update_custom_fields.js';
 import cleanCustomFieldName from '../scripts/cleanCustomFieldName.js';
 import { appendToLogFile } from '../utils/utils.js';
 
+async function incrementFailedCount(totalJsonPath) {
+    try {
+        const raw = await fs.readFile(totalJsonPath, 'utf-8');
+        const data = JSON.parse(raw);
+        data.failed = (data.failed || 0) + 1;
+        await fs.writeFile(totalJsonPath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+        console.error(`Failed to update failed count in total.json: ${err.message}`);
+    }
+}
+
 async function getMemberId(token) {
     const url = 'https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=7.1-preview.1';
     const response = await fetch(url, {
@@ -188,6 +199,7 @@ async function createIssues(token, issuesFile, organization, project, workItemTy
         await appendToLogFile(logfilepath, `Issue created successfully. Issue key: ${issueData.key}`);
     } catch (error) {
         await appendToLogFile(logfilepath, `Error creating issue for workItemType: ${workItemType}. ${error.message}`);
+        throw error; // Re-throw so the caller can increment the failed counter
     }
 }
 
@@ -393,7 +405,7 @@ async function logAvailableWorkItemTypes(token, organization, processName) {
     }
 }
 
-export async function migrateData(token, customFieldsDir, workflowsDir, issuesDir, organization, project, logfilepath) {
+export async function migrateData(token, customFieldsDir, workflowsDir, issuesDir, organization, project, logfilepath, totalJsonPath = './json/total.json') {
     try {
         // Update custom fields before migration
         await appendToLogFile(logfilepath, 'Validating and updating custom fields...');
@@ -402,7 +414,13 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
         const customFieldFiles = await fs.readdir(customFieldsDir);
         for (const file of customFieldFiles) {
             const filePath = path.join(customFieldsDir, file);
-            await createCustomFields(token, filePath, organization, logfilepath);
+            try {
+                await createCustomFields(token, filePath, organization, logfilepath);
+            } catch (error) {
+                await appendToLogFile(logfilepath, `FAILED: custom field "${file}" - ${error.message}`);
+                await incrementFailedCount(totalJsonPath);
+                // Continue to the next custom field — do not abort the loop
+            }
         }
 
         // Retrieve all workItemTypes from issue JSON files
@@ -410,33 +428,57 @@ export async function migrateData(token, customFieldsDir, workflowsDir, issuesDi
         const workItemTypes = new Set();
         for (const file of issueFiles) {
             const filePath = path.join(issuesDir, file);
-            const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
-            workItemTypes.add(issueData.fields.issuetype.name); // Collect unique workItemTypes
+            try {
+                const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
+                workItemTypes.add(issueData.fields.issuetype.name); // Collect unique workItemTypes
+            } catch (error) {
+                await appendToLogFile(logfilepath, `FAILED: reading issue file "${file}" for work item type collection - ${error.message}`);
+                // Continue collecting types from remaining files
+            }
         }
 
         // Use workItemTypes for workflows creation
         const workflowFiles = await fs.readdir(workflowsDir);
         for (const file of workflowFiles) {
             const filePath = path.join(workflowsDir, file);
-            const workflowData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
-
             try {
-                const processId = await getOrCreateProcessId(token, organization, workflowData.name);
-                for (const workItemType of workItemTypes) {
-                    await appendToLogFile(logfilepath, `Creating workflow for processId: ${processId}, workItemType: ${workItemType}`);
-                    await createWorkflows(token, filePath, organization, processId, workItemType, logfilepath);
+                const workflowData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
+                try {
+                    const processId = await getOrCreateProcessId(token, organization, workflowData.name);
+                    for (const workItemType of workItemTypes) {
+                        await appendToLogFile(logfilepath, `Creating workflow for processId: ${processId}, workItemType: ${workItemType}`);
+                        try {
+                            await createWorkflows(token, filePath, organization, processId, workItemType, logfilepath);
+                        } catch (error) {
+                            await appendToLogFile(logfilepath, `FAILED: workflow "${workflowData.name}" for workItemType "${workItemType}" - ${error.message}`);
+                            await incrementFailedCount(totalJsonPath);
+                            // Continue to the next workItemType — do not abort the loop
+                        }
+                    }
+                } catch (error) {
+                    await appendToLogFile(logfilepath, `FAILED: processing workflow "${workflowData.name}" - ${error.message}`);
+                    await incrementFailedCount(totalJsonPath);
+                    // Continue to the next workflow file — do not abort the loop
                 }
             } catch (error) {
-                await appendToLogFile(logfilepath, `Error processing workflow "${workflowData.name}": ${error.message}`);
+                await appendToLogFile(logfilepath, `FAILED: reading workflow file "${file}" - ${error.message}`);
+                await incrementFailedCount(totalJsonPath);
+                // Continue to the next workflow file — do not abort the loop
             }
         }
 
         // Create issues
         for (const file of issueFiles) {
             const filePath = path.join(issuesDir, file);
-            const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
-            const workItemType = issueData.fields.issuetype.name; // Extract work item type from issue JSON
-            await createIssues(token, filePath, organization, project, workItemType, logfilepath);
+            try {
+                const issueData = JSON.parse(await fs.readFile(filePath, 'utf-8'));
+                const workItemType = issueData.fields.issuetype.name; // Extract work item type from issue JSON
+                await createIssues(token, filePath, organization, project, workItemType, logfilepath);
+            } catch (error) {
+                await appendToLogFile(logfilepath, `FAILED: issue "${file}" - ${error.message}`);
+                await incrementFailedCount(totalJsonPath);
+                // Continue to the next issue — do not abort the loop
+            }
         }
 
         await appendToLogFile(logfilepath, 'Data migration completed successfully.');
