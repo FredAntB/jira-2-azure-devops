@@ -10,24 +10,24 @@ function ZephyrSection() {
   const [email, setEmail] = useState("");
   const [url, setUrl] = useState("");
 
-  // Obtener los tokens del usuario al cargar el componente
+  // Load user tokens on component mount
   useEffect(() => {
     const fetchTokens = async () => {
       const username = localStorage.getItem("username");
       if (!username) {
-        console.log("Usuario no ha iniciado sesión.");
+        console.log("User is not logged in.");
         return;
       }
 
       const tokens = localStorage.getItem("tokens");
       if (tokens) {
-        // Buscar el token de Jira
+        // Find the Zephyr token
         const parsedTokens = JSON.parse(tokens);
         const zephyrToken = parsedTokens.find(
           (token) => token.Application === "Zephyr"
         );
         if (zephyrToken) {
-          // Llenar los campos con los datos del token de Jira
+          // Populate fields with the Zephyr token data
           setApiToken(zephyrToken.Number);
           setEmail(zephyrToken.email);
           setUrl(zephyrToken.url);
@@ -36,29 +36,28 @@ function ZephyrSection() {
       }
 
       try {
-        // Hacer la solicitud para obtener los tokens
+        // Fetch tokens from the backend
         const response = await getTokens(username);
 
         if (response.success && response.tokens) {
-          // Buscar el token de Zephyr
+          // Find the Zephyr token
           const zephyrToken = response.tokens.find(
             (token) => token.Application === "Zephyr"
           );
           if (zephyrToken) {
-            // Llenar los campos con los datos del token de Zephyr
-            console.dir(zephyrToken, { depth: null });
+            // Populate fields with the Zephyr token data
             setApiToken(zephyrToken.Number);
             setEmail(zephyrToken.email);
             setUrl(zephyrToken.url);
           }
         }
       } catch (error) {
-        console.error("Error al obtener los tokens:", error);
+        console.error("Error fetching tokens:", error);
       }
     };
 
     fetchTokens();
-  }, []); // El array vacío [] asegura que esto solo se ejecute una vez al montar el componente
+  }, []); // Empty array [] ensures this only runs once on mount
 
   const handleSaveToken = async () => {
     const username = localStorage.getItem("username");
@@ -98,29 +97,29 @@ function ZephyrSection() {
     }
 
     try {
-      // Obtener el ID del token de Zephyr del usuario
+      // Fetch the Zephyr token ID for the user
       const response = await axios.get("http://localhost:4000/api/tokens", {
         params: { username },
       });
 
-      console.log("Respuesta del backend en deleteToken:", response.data); // Debug
+      console.log("Backend response in deleteToken:", response.data); // Debug
 
       if (response.data.success && response.data.tokens) {
-        // Buscar el token de zephyr
+        // Find the Zephyr token
         const zephyrToken = response.data.tokens.find(
           (token) => token.Application === "Zephyr"
         );
 
-        console.log("Token encontrado en deleteToken:", zephyrToken); // Debug
+        console.log("Token found in deleteToken:", zephyrToken); // Debug
 
         if (!zephyrToken || !zephyrToken.id) {
-          alert("No se encontró un token de Zephyr para este usuario.");
+          alert("No Zephyr token found for this user.");
           return;
         }
 
-        console.log("Intentando eliminar el token con ID:", zephyrToken.id); // Debug
+        console.log("Attempting to delete token with ID:", zephyrToken.id); // Debug
 
-        // Enviar solicitud para eliminar el token
+        // Send request to delete the token
         const deleteResponse = await axios.delete(
           "http://localhost:4000/api/delete-token",
           {
@@ -129,8 +128,8 @@ function ZephyrSection() {
         );
 
         if (deleteResponse.data.success) {
-          alert("Token eliminado correctamente!");
-          // Limpiar los campos del formulario
+          alert("Token deleted successfully!");
+          // Clear the form fields
           setApiToken("");
           setEmail("");
           setUrl("");
@@ -139,9 +138,9 @@ function ZephyrSection() {
         }
       }
     } catch (error) {
-      console.error("Error al eliminar el token:", error);
+      console.error("Error deleting token:", error);
       alert(
-        "No se pudo eliminar el token: " +
+        "Unable to delete the token: " +
           (error.response?.data?.message || error.message)
       );
     }
