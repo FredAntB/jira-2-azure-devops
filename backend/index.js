@@ -501,19 +501,33 @@ app.post('/api/end-migration', authMiddleware, async (req, res, next) => {
 // Get migration progress and logs — protected
 app.get('/api/migration-status', authMiddleware, async (req, res, next) => {
     try {
-        const logData = await fs.promises.readFile('./logfile.log', 'utf-8');
+        // Return safe defaults if the log file does not exist yet
+        if (!fs.existsSync('./logfile.log')) {
+            return res.status(200).json({ progress: 0, logs: [] });
+        }
 
-        const logs = logData.split('============\n').map(log => log.trim()).filter(log => log);
+        // Return safe defaults if total.json does not exist yet
+        if (!fs.existsSync('./json/total.json')) {
+            return res.status(200).json({ progress: 0, logs: [] });
+        }
 
         const totalJsonData = await fs.promises.readFile('./json/total.json', 'utf-8');
         const totalData = JSON.parse(totalJsonData);
+
+        // Return safe defaults if total is 0 (division by zero guard)
+        if (!totalData.total || totalData.total === 0) {
+            return res.status(200).json({ progress: 0, logs: [] });
+        }
+
+        const logData = await fs.promises.readFile('./logfile.log', 'utf-8');
+        const logs = logData.split('============\n').map(log => log.trim()).filter(log => log);
 
         const progress = (totalData.migrated / totalData.total) * 100;
 
         res.status(200).json({ progress, logs });
 
     } catch (error) {
-        console.error('Error while reading logfile.log:', error);
+        console.error('Error while reading migration status:', error);
         next(error);
     }
 });
