@@ -12,6 +12,7 @@ import { migrate } from './migrations/jiraMigrations.js';
 import { fetchAllProjects, migrateData } from './azure_functions/projects.js';
 import { TestsMigration } from './testMigration/TestMigration.js';
 import authMiddleware from './middleware/authMiddleware.js';
+import { validateMigrationRequest, validateSaveTokenRequest, validateRegisterRequest } from './middleware/validateMiddleware.js';
 
 
 // Startup environment variable validation
@@ -127,7 +128,7 @@ app.get('/api/test', (_, res) => {
 // Route listing for debug (runs at startup, before routes are registered — moved to app.listen)
 
 // Register a new user — public
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', validateRegisterRequest, async (req, res) => {
     console.log("📩 Received POST request at /api/register");
 
     try {
@@ -221,7 +222,7 @@ app.get('/api/tokens', authMiddleware, async (req, res) => {
 });
 
 // Save an encrypted token — protected
-app.post('/api/save-token', authMiddleware, async (req, res) => {
+app.post('/api/save-token', authMiddleware, validateSaveTokenRequest, async (req, res) => {
     try {
         console.dir(req.body, { depth: null });
         const { username, token, email, url, application } = req.body;
@@ -393,13 +394,9 @@ app.get('/api/azure/projects', authMiddleware, async (_, res) => {
 });
 
 // Start a migration job — protected
-app.post('/api/migration', authMiddleware, async (req, res) => {
+app.post('/api/migration', authMiddleware, validateMigrationRequest, async (req, res) => {
     console.dir(req.body, { depth: null });
     const { start, origin, destination, options } = req.body;
-
-    if (!origin || !destination) {
-        return res.status(400).json({ message: "Missing required parameters." });
-    }
 
     if (start) {
         let new_options = options;
