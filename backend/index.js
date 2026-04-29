@@ -51,6 +51,8 @@ let JIRA_TOKEN = null;
 let AZURE_TOKEN = null;
 // Zephyr Token's cache
 let ZEPHYR_TOKEN = null;
+// Migration concurrency guard
+let migrationInProgress = false;
 
 const app = express();
 
@@ -159,7 +161,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Get decrypted tokens for the authenticated user — protected
-app.get('/api/tokens', authMiddleware, async (req, res) => {
+app.get('/api/tokens', authMiddleware, async (req, res, next) => {
     try {
         const { username } = req.query;
         const [userRows] = await pool.query('SELECT * FROM user WHERE username = ?', [username]);
@@ -217,12 +219,15 @@ app.get('/api/tokens', authMiddleware, async (req, res) => {
         res.json({ success: true, tokens: decryptedTokens });
     } catch (error) {
         console.error('❌ Error fetching tokens:', error);
-        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+        if (error.code === 'ER_CON_COUNT_ERROR') {
+            return res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
+        }
+        next(error);
     }
 });
 
 // Save an encrypted token — protected
-app.post('/api/save-token', authMiddleware, validateSaveTokenRequest, async (req, res) => {
+app.post('/api/save-token', authMiddleware, validateSaveTokenRequest, async (req, res, next) => {
     try {
         console.dir(req.body, { depth: null });
         const { username, token, email, url, application } = req.body;
@@ -291,14 +296,17 @@ app.post('/api/save-token', authMiddleware, validateSaveTokenRequest, async (req
         res.status(200).json({ success: true, message: `${application} credentials saved successfully!` });
     } catch (error) {
         console.error('❌ Error saving token:', error);
-        if (!res.headersSent) { // Ensure no response has been sent already
-            return res.status(500).json({ success: false, message: 'Internal Server Error' });
+        if (error.code === 'ER_CON_COUNT_ERROR') {
+            return res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
+        }
+        if (!res.headersSent) {
+            return next(error);
         }
     }
 });
 
 // Delete a token — protected
-app.delete('/api/delete-token', authMiddleware, async (req, res) => {
+app.delete('/api/delete-token', authMiddleware, async (req, res, next) => {
     try {
         const { username, tokenId } = req.body;
 
@@ -346,12 +354,15 @@ app.delete('/api/delete-token', authMiddleware, async (req, res) => {
         res.status(200).json({ success: true, message: 'Token eliminado correctamente' });
     } catch (error) {
         console.error('❌ Error al eliminar el token:', error);
-        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+        if (error.code === 'ER_CON_COUNT_ERROR') {
+            return res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
+        }
+        next(error);
     }
 });
 
 // Get Jira projects — protected
-app.get('/api/jira/projects', authMiddleware, async (_, res) => {
+app.get('/api/jira/projects', authMiddleware, async (req, res, next) => {
     try {
         // Read Jira projects from the dedicated file
         let jiraProjects = [];
@@ -367,12 +378,15 @@ app.get('/api/jira/projects', authMiddleware, async (_, res) => {
         res.status(200).send({ projects: jiraProjects, status: "ok" });
     } catch (error) {
         console.error('❌ Error fetching Jira projects:', error);
-        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+        if (error.code === 'ER_CON_COUNT_ERROR') {
+            return res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
+        }
+        next(error);
     }
 });
 
 // Get Azure DevOps projects — protected
-app.get('/api/azure/projects', authMiddleware, async (_, res) => {
+app.get('/api/azure/projects', authMiddleware, async (req, res, next) => {
     try {
         // Read Azure projects from the dedicated file
         let azureProjects = [];
@@ -389,75 +403,103 @@ app.get('/api/azure/projects', authMiddleware, async (_, res) => {
         res.status(200).send({ projects: azureProjects, status: "ok" });
     } catch (error) {
         console.error('❌ Error fetching Azure projects:', error);
-        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+        if (error.code === 'ER_CON_COUNT_ERROR') {
+            return res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
+        }
+        next(error);
     }
 });
 
 // Start a migration job — protected
-app.post('/api/migration', authMiddleware, validateMigrationRequest, async (req, res) => {
+app.post('/api/migration', authMiddleware, validateMigrationRequest, async (req, res, next) => {
     console.dir(req.body, { depth: null });
     const { start, origin, destination, options } = req.body;
 
     if (start) {
-        let new_options = options;
-        if (options === null) {
-            new_options = {
-                customFields: true,
-                issues: true,
-                workflows: true
-            };
-        }
-        const options_paths = getSelectionPaths(new_options, "./json");
-        const logFilePath = "./logfile.log";
-        const [azure_org, azure_proj] = destination.split('/');
-
-        if (!fs.existsSync(logFilePath)) {
-            fs.writeFileSync(logFilePath, '');
+        // Concurrency guard: reject if a migration is already running
+        if (migrationInProgress) {
+            return res.status(409).json({ success: false, message: 'A migration is already in progress' });
         }
 
-        migrate(URL, EMAIL, JIRA_TOKEN, origin, logFilePath, "./json/total.json", new_options, options_paths)
-            .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj, logFilePath))
-            .then(() => {
-                const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath, "./json/total.json");
-                testMigration.migrateTestPlans().then(() => {
-                    return testMigration.migrateTestSuites();
-                }).then(() => {
-                    return testMigration.migrateTestCases();
-                }).then(() => {
-                    appendToLogFile(logFilePath, "Test migration completed successfully.");
-                    appendToLogFile(logFilePath, "Migration completed successfully.");
-                    const totalJsonData = fs.readFileSync('./json/total.json', 'utf-8');
-                    const totalData = JSON.parse(totalJsonData);
-                    totalData.migrated = totalData.total;
-                    fs.writeFileSync('./json/total.json', JSON.stringify(totalData, null, 2));
+        migrationInProgress = true;
+
+        try {
+            let new_options = options;
+            if (options === null) {
+                new_options = {
+                    customFields: true,
+                    issues: true,
+                    workflows: true
+                };
+            }
+            const options_paths = getSelectionPaths(new_options, "./json");
+            const logFilePath = "./logfile.log";
+            const [azure_org, azure_proj] = destination.split('/');
+
+            if (!fs.existsSync(logFilePath)) {
+                fs.writeFileSync(logFilePath, '');
+            }
+
+            // Initialise total.json if it does not exist
+            if (!fs.existsSync('./json/total.json')) {
+                fs.writeFileSync('./json/total.json', JSON.stringify({ total: 0, migrated: 0, failed: 0, fields: 0, issues: 0, workflows: 0 }, null, 2));
+            }
+
+            migrate(URL, EMAIL, JIRA_TOKEN, origin, logFilePath, "./json/total.json", new_options, options_paths)
+                .then(() => migrateData(AZURE_TOKEN, "./json/custom_fields", "./json/workflows", "./json/issues", azure_org, azure_proj, logFilePath))
+                .then(() => {
+                    const testMigration = new TestsMigration(ZEPHYR_TOKEN, origin, AZURE_TOKEN, azure_org, azure_proj, logFilePath, "./json/total.json");
+                    testMigration.migrateTestPlans().then(() => {
+                        return testMigration.migrateTestSuites();
+                    }).then(() => {
+                        return testMigration.migrateTestCases();
+                    }).then(() => {
+                        appendToLogFile(logFilePath, "Test migration completed successfully.");
+                        appendToLogFile(logFilePath, "Migration completed successfully.");
+                        const totalJsonData = fs.readFileSync('./json/total.json', 'utf-8');
+                        const totalData = JSON.parse(totalJsonData);
+                        totalData.migrated = totalData.total;
+                        fs.writeFileSync('./json/total.json', JSON.stringify(totalData, null, 2));
+                    });
+                })
+                .catch((err) => {
+                    console.error('❌ Migration pipeline error:', err);
+                    appendToLogFile(logFilePath, `Migration failed: ${err.message}`);
+                })
+                .finally(() => {
+                    migrationInProgress = false;
                 });
+
+            res.status(200).json({
+                message: "Migration request received successfully.",
+                receivedData: { origin, destination, options }
             });
-
-
-
-        res.status(200).json({
-            message: "Migration request received successfully.",
-            receivedData: { origin, destination, options }
-        });
+        } catch (error) {
+            migrationInProgress = false;
+            next(error);
+        }
     }
 });
 
 // End a migration and reset state — protected
-app.post('/api/end-migration', authMiddleware, async (req, res) => {
-    const { finish } = req.body;
+app.post('/api/end-migration', authMiddleware, async (req, res, next) => {
+    try {
+        const { finish } = req.body;
 
-    if (finish) {
-        emptyLogFile("./logfile.log");
-        emptyJSONFile("./json/total.json");
-        res.status(200).json({ message: "Migration ended successfully..." });
-    }
-    else {
-        res.status(400).json({ message: "Tried to end migration forcefully..." });
+        if (finish) {
+            emptyLogFile("./logfile.log");
+            emptyJSONFile("./json/total.json");
+            res.status(200).json({ message: "Migration ended successfully..." });
+        } else {
+            res.status(400).json({ message: "Tried to end migration forcefully..." });
+        }
+    } catch (error) {
+        next(error);
     }
 });
 
 // Get migration progress and logs — protected
-app.get('/api/migration-status', authMiddleware, async (_, res) => {
+app.get('/api/migration-status', authMiddleware, async (req, res, next) => {
     try {
         const logData = await fs.promises.readFile('./logfile.log', 'utf-8');
 
@@ -472,10 +514,20 @@ app.get('/api/migration-status', authMiddleware, async (_, res) => {
 
     } catch (error) {
         console.error('Error while reading logfile.log:', error);
-        res.status(500).json({ error: 'There was an error while reading the status. Could not get the migration status' });
+        next(error);
     }
 });
 console.log('Pool initialized:', pool);
+
+// Global error handler — must be the last middleware (four arguments)
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    if (err.code === 'ER_CON_COUNT_ERROR') {
+        return res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
+    }
+    res.status(500).json({ success: false, message: 'Internal server error' });
+});
 
 // ✅ Start the server
 const PORT = process.env.PORT || 4000;
