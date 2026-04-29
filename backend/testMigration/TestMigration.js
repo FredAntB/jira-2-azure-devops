@@ -17,6 +17,8 @@ export class TestsMigration {
         this.azureHandler = new AzureDevOpsTests(azureToken, azureOrganization, azureProject);
         this.testPlanMapping = {};
         this.testCyclesMapping = {};
+        // Maps Azure suite ID → Azure plan ID, populated during migrateTestSuites
+        this.testSuiteToPlanMapping = {};
 
         // Null-check for Zephyr token: log a warning if absent so migrate* methods can return early
         if (!jiraToken) {
@@ -96,6 +98,7 @@ export class TestsMigration {
                     const createdTestSuite = await this.azureHandler.createTestSuite(testCycleData);
                     this.testItemCreated('suite', createdTestSuite.id);
                     this.testCyclesMapping[(testCycle.id)] = createdTestSuite.id;
+                    this.testSuiteToPlanMapping[createdTestSuite.id] = testPlanId;
 
                     data.migrated += 1;
                     fs.writeFileSync(this.total_filepath, JSON.stringify(data, null, 2), 'utf-8');
@@ -130,13 +133,13 @@ export class TestsMigration {
 
             for (const testcase of testCases) {
                 const testcaseObj = {
-                    name: testcase[0].value,
-                    description: testcase[1].value,
-                    priority: testcase[2].value
+                    name: testcase.patchOps[0].value,
+                    description: testcase.patchOps[1].value,
+                    priority: testcase.patchOps[2].value
                 };
                 try {
                     this.log('Creating test case:' + JSON.stringify(testcaseObj));
-                    const createdTestCase = await this.azureHandler.createTestCase(testcase);
+                    const createdTestCase = await this.azureHandler.createTestCase(testcase.patchOps);
                     this.testItemCreated('Test Case', createdTestCase.id);
 
                     // Record the mapping from test case to its suite using the testCycleId
@@ -156,10 +159,14 @@ export class TestsMigration {
             // Map each created test case to its corresponding test suite
             for (const [testCaseId, testSuiteId] of Object.entries(testCaseToSuiteMapping)) {
                 try {
-                    // Resolve the test plan ID from the suite mapping
-                    const testPlanId = Object.values(this.testPlanMapping)[0]; // Use first plan as fallback
+                    // Resolve the test plan ID from the suite-to-plan mapping
+                    const testPlanId = this.testSuiteToPlanMapping[testSuiteId];
+                    if (!testPlanId) {
+                        this.log(`FAILED: cannot resolve test plan for suite ${testSuiteId} (test case ${testCaseId})`);
+                        continue;
+                    }
                     await this.azureHandler.mapTestcaseToTestSuite(testPlanId, testSuiteId, testCaseId);
-                    this.log(`Mapped test case ${testCaseId} to suite ${testSuiteId}`);
+                    this.log(`Mapped test case ${testCaseId} to suite ${testSuiteId} in plan ${testPlanId}`);
                 } catch (error) {
                     this.log(`FAILED: mapping test case ${testCaseId} to suite ${testSuiteId} - ${error.message}`);
                     // Continue mapping remaining test cases — do not abort the loop
