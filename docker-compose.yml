@@ -4,7 +4,7 @@ services:
     container_name: mysql_container
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: hola123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: usersjira
     volumes:
       - db_data:/var/lib/mysql  # Ensure this volume is clean if issues persist
@@ -28,10 +28,10 @@ services:
     environment:
       DB_HOST: db
       DB_USER: root
-      DB_PASSWORD: hola123
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: usersjira
       DB_PORT: 3306
-      ENCRYPTION_KEY: MzY0SUpmY3lWbG51b0pENlJxOE5WT2pX
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       PORT: 4000
     ports:
       - "4000:4000"
