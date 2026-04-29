@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import fs from 'fs';
-import axios from 'axios'; // Add axios for lightweight API calls
+import axios from 'axios';
 import { loginUser, registerUser } from './userService.js';
 import pool from './db.js';
 import { readArrayFromJSONFile, getSelectionPaths, emptyArrayFromJSONFile, emptyLogFile, emptyJSONFile, appendToLogFile } from './utils/utils.js';
@@ -11,6 +11,7 @@ import { decryptToken, encryptToken } from './tokenService.js';
 import { migrate } from './migrations/jiraMigrations.js';
 import { fetchAllProjects, migrateData } from './azure_functions/projects.js';
 import { TestsMigration } from './testMigration/TestMigration.js';
+import authMiddleware from './middleware/authMiddleware.js';
 
 
 // Startup environment variable validation
@@ -75,10 +76,10 @@ async function validateJiraToken(url, email, token) {
     }
 }
 
-// Middleware to verify the validity of the Jira token
+// Middleware to cache application credentials and validate Jira token on save
 app.use('/api/save-token', async (req, res, next) => {
     try {
-        const { _, token, email, url, application } = req.body;
+        const { token, email, url, application } = req.body;
 
         if (!token || !application) {
             return res.status(400).json({ success: false, message: 'Missing required parameters: token or application.' });
@@ -91,31 +92,23 @@ app.use('/api/save-token', async (req, res, next) => {
 
         if (application === "Azure Devops") {
             AZURE_TOKEN = token;
-
-            // Fetch and write Azure projects to a separate file
             const azureProjects = await fetchAllProjects(token);
             fs.writeFileSync("./json/azure_projects.json", JSON.stringify({ projects: azureProjects }, null, 2));
-
             return next();
         }
 
         if (application === "Jira") {
-            if (!token || !email || !url) {
+            if (!email || !url) {
                 return res.status(400).json({ success: false, message: 'Missing required parameters for Jira.' });
             }
-
             const isValid = await validateJiraToken(url, email, token);
             if (!isValid) {
                 return res.status(401).json({ success: false, message: 'Invalid Jira token.' });
             }
-
             URL = url;
             EMAIL = email;
             JIRA_TOKEN = token;
-
-            // Fetch and write Jira projects to a separate file
             await retrieveAndWriteProjects(url, email, token, "./json/jira_projects.json");
-
             return next();
         }
 
@@ -126,20 +119,14 @@ app.use('/api/save-token', async (req, res, next) => {
     }
 });
 
-// ruta de test
+// Health check — public
 app.get('/api/test', (_, res) => {
-    res.json({ message: "✅ Backend funcionando correctamente" });
+    res.json({ message: "✅ Backend is running correctly." });
 });
 
-// chequeando que las rutas carguen
-console.log("🔍 Loaded API routes:");
-app._router.stack.forEach((r) => {
-    if (r.route && r.route.path) {
-        console.log(`➡️ ${r.route.path}`);
-    }
-});
+// Route listing for debug (runs at startup, before routes are registered — moved to app.listen)
 
-// Register a new user
+// Register a new user — public
 app.post('/api/register', async (req, res) => {
     console.log("📩 Received POST request at /api/register");
 
@@ -170,8 +157,8 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// ruta para obtener tokens
-app.get('/api/tokens', async (req, res) => {
+// Get decrypted tokens for the authenticated user — protected
+app.get('/api/tokens', authMiddleware, async (req, res) => {
     try {
         const { username } = req.query;
         const [userRows] = await pool.query('SELECT * FROM user WHERE username = ?', [username]);
@@ -233,8 +220,8 @@ app.get('/api/tokens', async (req, res) => {
     }
 });
 
-// Modify save-token endpoint
-app.post('/api/save-token', async (req, res) => {
+// Save an encrypted token — protected
+app.post('/api/save-token', authMiddleware, async (req, res) => {
     try {
         console.dir(req.body, { depth: null });
         const { username, token, email, url, application } = req.body;
@@ -303,8 +290,8 @@ app.post('/api/save-token', async (req, res) => {
     }
 });
 
-// Modify delete-token endpoint
-app.delete('/api/delete-token', async (req, res) => {
+// Delete a token — protected
+app.delete('/api/delete-token', authMiddleware, async (req, res) => {
     try {
         const { username, tokenId, splitToken } = req.body;
 
@@ -361,8 +348,8 @@ app.delete('/api/delete-token', async (req, res) => {
     }
 });
 
-// Route to get Jira projects
-app.get('/api/jira/projects', async (_, res) => {
+// Get Jira projects — protected
+app.get('/api/jira/projects', authMiddleware, async (_, res) => {
     try {
         // Read Jira projects from the dedicated file
         let jiraProjects = [];
@@ -382,8 +369,8 @@ app.get('/api/jira/projects', async (_, res) => {
     }
 });
 
-// Route to get Azure projects
-app.get('/api/azure/projects', async (_, res) => {
+// Get Azure DevOps projects — protected
+app.get('/api/azure/projects', authMiddleware, async (_, res) => {
     try {
         // Read Azure projects from the dedicated file
         let azureProjects = [];
@@ -404,8 +391,8 @@ app.get('/api/azure/projects', async (_, res) => {
     }
 });
 
-// ruta de migracion
-app.post('/api/migration', async (req, res) => {
+// Start a migration job — protected
+app.post('/api/migration', authMiddleware, async (req, res) => {
     console.dir(req.body, { depth: null });
     const { start, origin, destination, options } = req.body;
 
@@ -457,7 +444,8 @@ app.post('/api/migration', async (req, res) => {
     }
 });
 
-app.post('/api/end-migration', async (req, res) => {
+// End a migration and reset state — protected
+app.post('/api/end-migration', authMiddleware, async (req, res) => {
     const { finish } = req.body;
 
     if (finish) {
@@ -470,9 +458,8 @@ app.post('/api/end-migration', async (req, res) => {
     }
 });
 
-//endpoint /api/migration-status (GET) lo que debo hacer es leer logfile.log, luego debo retornar un array de logs (siguiendo el formato en progress.jsx)
-// luego calcular el progreso [Log1, Log2, Log3]
-app.get('/api/migration-status', async (_, res) => {
+// Get migration progress and logs — protected
+app.get('/api/migration-status', authMiddleware, async (_, res) => {
     try {
         const logData = await fs.promises.readFile('./logfile.log', 'utf-8');
 
