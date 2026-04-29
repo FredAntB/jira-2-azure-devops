@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import pool from './db.js';
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY.padEnd(32, '0'); // Llave de 32 bytes
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const IV_LENGTH = 16;
 
 //Cifrar token

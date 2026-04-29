@@ -13,6 +13,32 @@ import { fetchAllProjects, migrateData } from './azure_functions/projects.js';
 import { TestsMigration } from './testMigration/TestMigration.js';
 
 
+// Startup environment variable validation
+if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length < 32) {
+    console.error('[FATAL] ENCRYPTION_KEY must be at least 32 characters');
+    process.exit(1);
+}
+if (!process.env.JWT_SECRET) {
+    console.error('[FATAL] JWT_SECRET environment variable is required');
+    process.exit(1);
+}
+if (!process.env.DB_HOST) {
+    console.error('[FATAL] DB_HOST environment variable is required');
+    process.exit(1);
+}
+if (!process.env.DB_USER) {
+    console.error('[FATAL] DB_USER environment variable is required');
+    process.exit(1);
+}
+if (!process.env.DB_PASSWORD) {
+    console.error('[FATAL] DB_PASSWORD environment variable is required');
+    process.exit(1);
+}
+if (!process.env.DB_NAME) {
+    console.error('[FATAL] DB_NAME environment variable is required');
+    process.exit(1);
+}
+
 // URL's cache
 let URL = null;
 // Email's cache
