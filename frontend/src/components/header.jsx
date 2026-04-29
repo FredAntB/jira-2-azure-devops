@@ -1,7 +1,7 @@
 import React from 'react';
 import './header.css';
 import '../styles/global.css';
-import { Link, useNavigate } from "react-router-dom"; //Esto igual muy importante
+import { Link, useNavigate } from "react-router-dom"; // Required for navigation
 
 
 function Header() {
@@ -11,7 +11,7 @@ function Header() {
     e.preventDefault();
     navigate(path);
     setTimeout(() => {
-      //Esto busca el hash luego de ir al path con rutas
+      // Scroll to the hash section after navigating to the path
       const section = document.querySelector(hash);
       if (section) {
         section.scrollIntoView({ behavior: 'smooth' });
@@ -23,7 +23,7 @@ function Header() {
     <header className="header">
       <nav className="navbar">
         
-        {/* Pestaña "Migrate" */}
+        {/* "Migrate" tab */}
         <Link to="/migrate">
           <div className="tab">
             <span>Migrate</span>
@@ -31,7 +31,7 @@ function Header() {
         </Link>
         
 
-        {/* Pestaña "API Token Management" con subsecciones (el style es para que no se desconfigure el color al añadir Link)*/}
+        {/* "API Token Management" tab with subsections (style prevents color override when using Link) */}
         <div className="tab">
         <Link to="/token-manager" style={{ color: "inherit", textDecoration: "none" }}>
           <span>API Token Management</span>

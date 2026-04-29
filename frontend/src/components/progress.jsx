@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import PropTypes from "prop-types";
 import "./progress.css";
 import { endMigration, getMigrationStatus } from "../../utils/api";
 import { useNavigate } from "react-router-dom";
@@ -86,7 +85,7 @@ export default function MigrationProgress() {
                 handleEndMigration();
               }}
             >
-              Finalizar Migración
+              Finish Migration
             </button>
           ) : (
             <p className="progress-text">Progress: {progress}%</p>
@@ -96,7 +95,3 @@ export default function MigrationProgress() {
     </div>
   );
 }
-
-MigrationProgress.propTypes = {
-  apiUrl: PropTypes.string.isRequired,
-};
