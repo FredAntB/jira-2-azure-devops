@@ -167,7 +167,7 @@ app.get('/api/tokens', authMiddleware, async (req, res, next) => {
         const [userRows] = await pool.query('SELECT * FROM user WHERE username = ?', [username]);
 
         if (userRows.length === 0) {
-            return res.status(400).json({ success: false, message: 'Usuario no encontrado' });
+            return res.status(400).json({ success: false, message: 'User not found' });
         }
 
         const [tokens] = await pool.query(`
@@ -200,7 +200,6 @@ app.get('/api/tokens', authMiddleware, async (req, res, next) => {
             const p_1 = zephyrToken.find(token => token.part === 1);
             const p_2 = zephyrToken.find(token => token.part === 2);
             ZEPHYR_TOKEN = decryptToken(p_1.Number.concat(p_2.Number));
-            console.dir(`zephyr token is: ${ZEPHYR_TOKEN}`, { depth: null });
             decryptedTokens.push({
                 id: p_1.id,
                 Number: ZEPHYR_TOKEN,
@@ -229,7 +228,6 @@ app.get('/api/tokens', authMiddleware, async (req, res, next) => {
 // Save an encrypted token — protected
 app.post('/api/save-token', authMiddleware, validateSaveTokenRequest, async (req, res, next) => {
     try {
-        console.dir(req.body, { depth: null });
         const { username, token, email, url, application } = req.body;
 
         if (!username || !token || !application) {
@@ -239,7 +237,7 @@ app.post('/api/save-token', authMiddleware, validateSaveTokenRequest, async (req
         const [userRows] = await pool.query('SELECT * FROM user WHERE username = ?', [username]);
 
         if (userRows.length === 0) {
-            return res.status(400).json({ success: false, message: 'Usuario no encontrado' });
+            return res.status(400).json({ success: false, message: 'User not found' });
         }
 
         // Upsert: delete any existing token rows for this application + user before inserting
@@ -311,12 +309,12 @@ app.delete('/api/delete-token', authMiddleware, async (req, res, next) => {
         const { username, tokenId } = req.body;
 
         if (!username || !tokenId) {
-            return res.status(400).json({ success: false, message: 'Faltan parámetros requeridos.' });
+            return res.status(400).json({ success: false, message: 'Missing required parameters.' });
         }
 
         const [userRows] = await pool.query('SELECT * FROM user WHERE username = ?', [username]);
         if (userRows.length === 0) {
-            return res.status(400).json({ success: false, message: 'Usuario no encontrado' });
+            return res.status(400).json({ success: false, message: 'User not found' });
         }
 
         const [tokenRows] = await pool.query(`
@@ -325,7 +323,7 @@ app.delete('/api/delete-token', authMiddleware, async (req, res, next) => {
             WHERE tr.username = ? AND t.id = ?`, [username, tokenId]);
 
         if (tokenRows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Token no encontrado o no pertenece al usuario' });
+            return res.status(404).json({ success: false, message: 'Token not found or does not belong to the user' });
         }
 
         const application = tokenRows[0].Application;
@@ -351,9 +349,9 @@ app.delete('/api/delete-token', authMiddleware, async (req, res, next) => {
             [username, application]
         );
 
-        res.status(200).json({ success: true, message: 'Token eliminado correctamente' });
+        res.status(200).json({ success: true, message: 'Token deleted successfully' });
     } catch (error) {
-        console.error('❌ Error al eliminar el token:', error);
+        console.error('❌ Error deleting token:', error);
         if (error.code === 'ER_CON_COUNT_ERROR') {
             return res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
         }
@@ -412,7 +410,6 @@ app.get('/api/azure/projects', authMiddleware, async (req, res, next) => {
 
 // Start a migration job — protected
 app.post('/api/migration', authMiddleware, validateMigrationRequest, async (req, res, next) => {
-    console.dir(req.body, { depth: null });
     const { start, origin, destination, options } = req.body;
 
     if (start) {

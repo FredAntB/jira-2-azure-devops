@@ -4,7 +4,7 @@ import pool from './db.js';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const IV_LENGTH = 16;
 
-//Cifrar token
+//Encrypt token
 export const encryptToken = (token) => {
     let iv = crypto.randomBytes(IV_LENGTH);
     let cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
@@ -12,7 +12,7 @@ export const encryptToken = (token) => {
     return iv.toString('hex') + ':' + encrypted.toString('hex');
 };
 
-// Desencriptar token
+// Decrypt token
 export const decryptToken = (encryptedToken) => {
     let parts = encryptedToken.split(':');
     let iv = Buffer.from(parts[0], 'hex');
@@ -22,28 +22,28 @@ export const decryptToken = (encryptedToken) => {
     return decrypted.toString('utf8');
 };
 
-// Guardar un token para un usuario
+// Save a token for a user
 export const saveUserToken = async (username, token, application, email, url) => {
     const encryptedToken = encryptToken(token);
 
-    // Insertar en `token` y recuperar el `id`
+    // Insert into `token` and retrieve the `id`
     const [result] = await pool.query(
         `INSERT INTO token (number, application, email, url) VALUES (?, ?, ?, ?)`,
         [encryptedToken, application, email || null, url || null]
     );
 
-    const tokenId = result.insertId; // Obtener el ID generado automáticamente
+    const tokenId = result.insertId; // Get the auto-generated ID
 
-    // Relacionar en `tokenreg`
+    // Associate in `tokenreg`
     await pool.query(
         'INSERT INTO tokenreg (username, token_id) VALUES (?, ?)', 
         [username, tokenId]
     );
 
-    return { message: 'Token almacenado correctamente' };
+    return { message: 'Token saved successfully' };
 };
 
-// 🔹 Obtener tokens de un usuario
+// Get tokens for a user
 export const getUserTokens = async (username) => {
     const [rows] = await pool.query(
         `SELECT token.id, token.number, token.application, token.email, token.url 
@@ -53,11 +53,11 @@ export const getUserTokens = async (username) => {
         [username]
     );
 
-    if (rows.length === 0) throw new Error('No se encontraron tokens para este usuario');
+    if (rows.length === 0) throw new Error('No tokens found for this user');
 
     return rows.map(row => ({
         id: row.id,
-        number: decryptToken(row.number), // Desencriptar antes de devolver
+        number: decryptToken(row.number), // Decrypt before returning
         application: row.application,
         email: row.email,
         url: row.url
