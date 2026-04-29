@@ -236,6 +236,12 @@ app.post('/api/save-token', authMiddleware, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Usuario no encontrado' });
         }
 
+        // Upsert: delete any existing token rows for this application + user before inserting
+        await pool.query(
+            'DELETE t, tr FROM token t JOIN tokenreg tr ON t.id = tr.id WHERE tr.username = ? AND t.Application = ?',
+            [username, application]
+        );
+
         const encryptedToken = encryptToken(token);
 
         if (encryptedToken.length > 500) {
@@ -293,7 +299,7 @@ app.post('/api/save-token', authMiddleware, async (req, res) => {
 // Delete a token — protected
 app.delete('/api/delete-token', authMiddleware, async (req, res) => {
     try {
-        const { username, tokenId, splitToken } = req.body;
+        const { username, tokenId } = req.body;
 
         if (!username || !tokenId) {
             return res.status(400).json({ success: false, message: 'Faltan parámetros requeridos.' });
@@ -330,16 +336,11 @@ app.delete('/api/delete-token', authMiddleware, async (req, res) => {
             emptyArrayFromJSONFile("./json/azure_projects.json");
         }
 
-        // Delete all parts of the token
-        await pool.query('DELETE FROM tokenreg WHERE username = ? AND id = ?', [username, tokenId]);
-        await pool.query('DELETE FROM token WHERE id = ?', [tokenId]);
-
-        if (splitToken) {
-            // Delete second part of token
-            await pool.query('DELETE FROM tokenreg WHERE username = ? AND id = ?', [username, tokenId + 1]);
-            await pool.query('DELETE FROM token WHERE id = ?', [tokenId + 1]);
-        }
-
+        // Delete all parts of the token (handles both single and split tokens uniformly)
+        await pool.query(
+            'DELETE t, tr FROM token t JOIN tokenreg tr ON t.id = tr.id WHERE tr.username = ? AND t.Application = ?',
+            [username, application]
+        );
 
         res.status(200).json({ success: true, message: 'Token eliminado correctamente' });
     } catch (error) {
