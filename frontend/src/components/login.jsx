@@ -28,8 +28,6 @@ function Login() {
     try {
       const data = await postLoginCredentials(username, password);
 
-      console.dir(data, { depth: null });
-
       const success = data[0];
 
       if (!success) {
@@ -37,10 +35,11 @@ function Login() {
         throw new Error(data[1]);
       }
 
-      alert(`Welcome ${data[1]}`);
-
-      // Store username in localStorage
+      // Store username and JWT in localStorage
       localStorage.setItem("username", username);
+      localStorage.setItem("token", data[2]);
+
+      alert(`Welcome ${data[1]}`);
 
       try {
         // Fetch tokens after successful login
@@ -73,8 +72,8 @@ function Login() {
 
       navigate("/migrate");
     } catch (err) {
-      console.error("Error en el login:", err);
-      setError(err.message || "Error en el login");
+      console.error("Login error:", err);
+      setError(err.message || "Login error");
     }
   };
 
