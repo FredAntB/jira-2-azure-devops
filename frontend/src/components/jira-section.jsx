@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import "./jira-section.css";
 import "../styles/global.css";
-import axios from "axios";
-import { getTokens, postTokens } from "../../utils/api";
+import { getTokens, postTokens, deleteToken as deleteTokenApi } from "../../utils/api";
 
 function JiraSection() {
   // Estados para almacenar los valores ingresados
@@ -97,45 +96,14 @@ function JiraSection() {
     }
 
     try {
-      // Fetch the Jira token ID for the user
-      const response = await axios.get("http://localhost:4000/api/tokens", {
-        params: { username },
-      });
-
-      console.log("Backend response in deleteToken:", response.data); // Debug
-
-      if (response.data.success && response.data.tokens) {
-        // Find the Jira token
-        const jiraToken = response.data.tokens.find(
-          (token) => token.Application === "Jira"
-        );
-
-        console.log("Token found in deleteToken:", jiraToken); // Debug
-
-        if (!jiraToken || !jiraToken.id) {
-          alert("No Jira token found for this user.");
-          return;
-        }
-
-        console.log("Attempting to delete token with ID:", jiraToken.id); // Debug
-
-        // Send request to delete the token
-        const deleteResponse = await axios.delete(
-          "http://localhost:4000/api/delete-token",
-          {
-            data: { username, tokenId: jiraToken.id, splitToken: false },
-          }
-        );
-
-        if (deleteResponse.data.success) {
-          alert("Token deleted successfully!");
-          // Clear the form fields
-          setApiToken("");
-          setEmail("");
-          setUrl("");
-        } else {
-          alert("Error: " + deleteResponse.data.message);
-        }
+      const data = await deleteTokenApi(username, "Jira");
+      if (data.success) {
+        alert("Token deleted successfully!");
+        setApiToken("");
+        setEmail("");
+        setUrl("");
+      } else {
+        alert("Error: " + data.message);
       }
     } catch (error) {
       console.error("Error deleting token:", error);
