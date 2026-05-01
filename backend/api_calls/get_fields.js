@@ -41,12 +41,16 @@ const cleanCustomFields = async (customFields) => {
             return; // Skip invalid fields
         }
 
+        // Azure referenceName suffix must contain only letters (no digits, underscores, or special chars).
+        // Strip everything except letters from the cleaned name for the referenceName suffix.
+        const referenceNameSuffix = cleanedName.replace(/[^a-zA-Z]/g, '') || 'Field';
+
         fields.push({
             id: field.id,
             name: cleanedName,
             description: field.description,
             type: field.schema.type,
-            referenceName: `Custom${field.schema.customId}.${cleanedName}`,
+            referenceName: `Custom${field.schema.customId}.${referenceNameSuffix}`,
             usage: "workItem"
         });
     });
