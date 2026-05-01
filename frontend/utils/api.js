@@ -87,22 +87,22 @@ export const postTokens = async (username, api_token, application, email, url) =
 
 export const getJiraProjects = async () => {
     const response = await api.get("/jira/projects");
+    return response.data;
+};
 
-    if (response.status === 200) {
-        return response.data;
-    } else {
-        return response.data;
-    }
+export const refreshJiraProjects = async () => {
+    const response = await api.post("/jira/projects/refresh");
+    return response.data;
 };
 
 export const getAzureProjects = async () => {
     const response = await api.get("/azure/projects");
+    return response.data;
+};
 
-    if (response.status === 200) {
-        return response.data;
-    } else {
-        return response.data;
-    }
+export const refreshAzureProjects = async () => {
+    const response = await api.post("/azure/projects/refresh");
+    return response.data;
 };
 
 export const startMigration = async (origin, destination, options) => {
@@ -153,3 +153,19 @@ export const endMigration = async () => {
         throw new Error("Error ending migration...");
     }
 }
+
+export const deleteToken = async (username, application) => {
+    // First fetch the token ID for this application
+    const tokensResponse = await api.get(`/tokens?username=${username}`);
+    if (!tokensResponse.data.success || !tokensResponse.data.tokens) {
+        throw new Error('Could not retrieve tokens.');
+    }
+    const match = tokensResponse.data.tokens.find(t => t.Application === application);
+    if (!match || !match.id) {
+        throw new Error(`No ${application} token found for this user.`);
+    }
+    const deleteResponse = await api.delete('/delete-token', {
+        data: { username, tokenId: match.id }
+    });
+    return deleteResponse.data;
+};
