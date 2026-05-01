@@ -49,6 +49,8 @@ let EMAIL = null;
 let JIRA_TOKEN = null;
 // Azure Devops Token's cache
 let AZURE_TOKEN = null;
+// Azure Devops Organization's cache (used for single-org PATs)
+let AZURE_ORG = null;
 // Zephyr Token's cache
 let ZEPHYR_TOKEN = null;
 // Migration concurrency guard
@@ -95,7 +97,8 @@ app.use('/api/save-token', async (req, res, next) => {
 
         if (application === "Azure Devops") {
             AZURE_TOKEN = token;
-            const azureProjects = await fetchAllProjects(token);
+            AZURE_ORG = url || null;  // url field carries the organization name for Azure
+            const azureProjects = await fetchAllProjects(token, AZURE_ORG);
             fs.writeFileSync("./json/azure_projects.json", JSON.stringify({ projects: azureProjects }, null, 2));
             return next();
         }
@@ -127,7 +130,59 @@ app.get('/api/test', (_, res) => {
     res.json({ message: "✅ Backend is running correctly." });
 });
 
-// Route listing for debug (runs at startup, before routes are registered — moved to app.listen)
+/**
+ * Loads all credentials for a user from the DB into the in-memory cache.
+ * Returns the decrypted token list. Safe to call multiple times — idempotent.
+ * Used by /api/tokens and by the migration route to restore state after a restart.
+ */
+async function loadCredentialsForUser(username) {
+    const [tokens] = await pool.query(`
+        SELECT t.id, t.Number, t.Application, t.email, t.url, t.part
+        FROM token t
+        JOIN tokenreg tr ON t.id = tr.id
+        WHERE tr.username = ?`, [username]);
+
+    const decryptedTokens = tokens.filter(t => t.part === null).map(t => ({
+        id: t.id,
+        Number: decryptToken(t.Number),
+        Application: t.Application,
+        email: t.email,
+        url: t.url,
+        part: t.part
+    }));
+
+    const jiraToken = decryptedTokens.find(t => t.Application === 'Jira');
+    if (jiraToken) {
+        JIRA_TOKEN = jiraToken.Number;
+        EMAIL = jiraToken.email;
+        URL = jiraToken.url;
+    } else {
+        JIRA_TOKEN = null;
+        EMAIL = null;
+        URL = null;
+    }
+
+    const zephyrParts = tokens.filter(t => t.Application === 'Zephyr');
+    if (zephyrParts.length > 0) {
+        const p_1 = zephyrParts.find(t => t.part === 1);
+        const p_2 = zephyrParts.find(t => t.part === 2);
+        if (p_1 && p_2) {
+            ZEPHYR_TOKEN = decryptToken(p_1.Number.concat(p_2.Number));
+            decryptedTokens.push({ id: p_1.id, Number: ZEPHYR_TOKEN, Application: 'Zephyr', email: p_1.email, url: p_1.url, part: null });
+        } else if (p_1) {
+            ZEPHYR_TOKEN = decryptToken(p_1.Number);
+            decryptedTokens.push({ id: p_1.id, Number: ZEPHYR_TOKEN, Application: 'Zephyr', email: p_1.email, url: p_1.url, part: null });
+        }
+    }
+
+    const azureToken = decryptedTokens.find(t => t.Application === 'Azure Devops');
+    if (azureToken) {
+        AZURE_TOKEN = azureToken.Number;
+        AZURE_ORG = azureToken.url || null;
+    }
+
+    return decryptedTokens;
+}
 
 // Register a new user — public
 app.post('/api/register', validateRegisterRequest, async (req, res) => {
@@ -153,6 +208,14 @@ app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await loginUser(username, password);
+
+        // Silently warm the in-memory credential cache so routes that depend on
+        // JIRA_TOKEN / AZURE_TOKEN work immediately without requiring the user to
+        // visit the token manager first. Errors here are non-fatal — login still succeeds.
+        loadCredentialsForUser(user.username).catch(err => {
+            console.warn(`[Login] Could not pre-load credentials for "${user.username}":`, err.message);
+        });
+
         res.status(200).json({ success: true, token: user.token, user: user.username });
     } catch (error) {
         console.error("❌ Login error:", error.message);
@@ -170,51 +233,7 @@ app.get('/api/tokens', authMiddleware, async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'User not found' });
         }
 
-        const [tokens] = await pool.query(`
-            SELECT t.id, t.Number, t.Application, t.email, t.url, t.part 
-            FROM token t
-            JOIN tokenreg tr ON t.id = tr.id
-            WHERE tr.username = ?`, [username]);
-
-        const decryptedTokens = tokens.filter(token => token.part === null).map(token => ({
-            id: token.id,
-            Number: decryptToken(token.Number),
-            Application: token.Application,
-            email: token.email,
-            url: token.url,
-            part: token.part
-        }));
-
-        const jiraToken = decryptedTokens.find(token => token.Application === 'Jira');
-        if (jiraToken) {
-            JIRA_TOKEN = jiraToken.Number;
-            EMAIL = jiraToken.email;
-            URL = jiraToken.url;
-        } else {
-            JIRA_TOKEN = null;
-            EMAIL = null;
-            URL = null;
-        }
-        const zephyrToken = tokens.filter(token => token.Application === 'Zephyr');
-        if (zephyrToken) {
-            const p_1 = zephyrToken.find(token => token.part === 1);
-            const p_2 = zephyrToken.find(token => token.part === 2);
-            ZEPHYR_TOKEN = decryptToken(p_1.Number.concat(p_2.Number));
-            decryptedTokens.push({
-                id: p_1.id,
-                Number: ZEPHYR_TOKEN,
-                Application: "Zephyr",
-                email: zephyrToken.email,
-                url: zephyrToken.url,
-                part: null
-            });
-        }
-
-        const azureToken = decryptedTokens.find(token => token.Application === 'Azure Devops');
-        if (azureToken) {
-            AZURE_TOKEN = azureToken.Number;
-        }
-
+        const decryptedTokens = await loadCredentialsForUser(username);
         res.json({ success: true, tokens: decryptedTokens });
     } catch (error) {
         console.error('❌ Error fetching tokens:', error);
@@ -240,11 +259,17 @@ app.post('/api/save-token', authMiddleware, validateSaveTokenRequest, async (req
             return res.status(400).json({ success: false, message: 'User not found' });
         }
 
-        // Upsert: delete any existing token rows for this application + user before inserting
-        await pool.query(
-            'DELETE t, tr FROM token t JOIN tokenreg tr ON t.id = tr.id WHERE tr.username = ? AND t.Application = ?',
+        // Upsert: delete any existing token rows for this application + user before inserting.
+        // Must delete tokenreg (child) before token (parent) to satisfy the FK constraint.
+        const [existingTokenRows] = await pool.query(
+            'SELECT t.id FROM token t JOIN tokenreg tr ON t.id = tr.id WHERE tr.username = ? AND t.Application = ?',
             [username, application]
         );
+        if (existingTokenRows.length > 0) {
+            const ids = existingTokenRows.map(r => r.id);
+            await pool.query('DELETE FROM tokenreg WHERE id IN (?)', [ids]);
+            await pool.query('DELETE FROM token WHERE id IN (?)', [ids]);
+        }
 
         const encryptedToken = encryptToken(token);
 
@@ -343,11 +368,17 @@ app.delete('/api/delete-token', authMiddleware, async (req, res, next) => {
             emptyArrayFromJSONFile("./json/azure_projects.json");
         }
 
-        // Delete all parts of the token (handles both single and split tokens uniformly)
-        await pool.query(
-            'DELETE t, tr FROM token t JOIN tokenreg tr ON t.id = tr.id WHERE tr.username = ? AND t.Application = ?',
+        // Delete all parts of the token (handles both single and split tokens uniformly).
+        // Must delete tokenreg (child) before token (parent) to satisfy the FK constraint.
+        const [tokenIdsToDelete] = await pool.query(
+            'SELECT t.id FROM token t JOIN tokenreg tr ON t.id = tr.id WHERE tr.username = ? AND t.Application = ?',
             [username, application]
         );
+        if (tokenIdsToDelete.length > 0) {
+            const ids = tokenIdsToDelete.map(r => r.id);
+            await pool.query('DELETE FROM tokenreg WHERE id IN (?)', [ids]);
+            await pool.query('DELETE FROM token WHERE id IN (?)', [ids]);
+        }
 
         res.status(200).json({ success: true, message: 'Token deleted successfully' });
     } catch (error) {
@@ -394,7 +425,7 @@ app.get('/api/azure/projects', authMiddleware, async (req, res, next) => {
         }
 
         if (azureProjects.length === 0) {
-            azureProjects = await fetchAllProjects(AZURE_TOKEN);
+            azureProjects = await fetchAllProjects(AZURE_TOKEN, AZURE_ORG || null);
             fs.writeFileSync("./json/azure_projects.json", JSON.stringify({ projects: azureProjects }, null, 2));
         }
 
@@ -404,6 +435,35 @@ app.get('/api/azure/projects', authMiddleware, async (req, res, next) => {
         if (error.code === 'ER_CON_COUNT_ERROR') {
             return res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
         }
+        next(error);
+    }
+});
+
+// Force-refresh Jira projects from the API, bypassing the JSON cache — protected
+app.post('/api/jira/projects/refresh', authMiddleware, async (req, res, next) => {
+    try {
+        if (!JIRA_TOKEN || !URL) {
+            return res.status(400).json({ success: false, message: 'Jira credentials are not configured.' });
+        }
+        const projects = await retrieveAndWriteProjects(URL, EMAIL, JIRA_TOKEN, "./json/jira_projects.json");
+        res.status(200).json({ projects, status: "ok" });
+    } catch (error) {
+        console.error('❌ Error refreshing Jira projects:', error);
+        next(error);
+    }
+});
+
+// Force-refresh Azure DevOps projects from the API, bypassing the JSON cache — protected
+app.post('/api/azure/projects/refresh', authMiddleware, async (req, res, next) => {
+    try {
+        if (!AZURE_TOKEN) {
+            return res.status(400).json({ success: false, message: 'Azure DevOps credentials are not configured.' });
+        }
+        const projects = await fetchAllProjects(AZURE_TOKEN, AZURE_ORG || null);
+        fs.writeFileSync("./json/azure_projects.json", JSON.stringify({ projects }, null, 2));
+        res.status(200).json({ projects, status: "ok" });
+    } catch (error) {
+        console.error('❌ Error refreshing Azure projects:', error);
         next(error);
     }
 });
@@ -421,6 +481,24 @@ app.post('/api/migration', authMiddleware, validateMigrationRequest, async (req,
         migrationInProgress = true;
 
         try {
+            // Restore credentials from DB if the in-memory cache is empty (e.g. after a container restart)
+            if (!JIRA_TOKEN || !URL) {
+                const username = req.user?.username;
+                if (username) {
+                    console.log('[Migration] In-memory credentials missing — reloading from DB for user:', username);
+                    await loadCredentialsForUser(username);
+                }
+            }
+
+            if (!JIRA_TOKEN || !URL) {
+                migrationInProgress = false;
+                return res.status(400).json({ success: false, message: 'Jira credentials are not configured. Please save your Jira token first.' });
+            }
+
+            if (!AZURE_TOKEN) {
+                migrationInProgress = false;
+                return res.status(400).json({ success: false, message: 'Azure DevOps credentials are not configured. Please save your Azure token first.' });
+            }
             let new_options = options;
             if (options === null) {
                 new_options = {
