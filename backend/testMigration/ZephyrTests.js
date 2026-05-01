@@ -22,7 +22,7 @@ export class ZephyrTests {
 
             return response.data;
         } catch (error) {
-            console.error(`❌ Error al obtener los datos de ${endpoint}:`, error?.response?.data || error.message);
+            console.error(`❌ Error fetching data from ${this.baseUrl}:`, error?.response?.data || error.message);
             return null;
         }
     }
@@ -40,18 +40,34 @@ export class ZephyrTests {
         return zephyrData.values.map(plan => ({
             id: plan.id,
             name: plan.name,
-            description: plan.objective || "Sin descripción",
+            description: plan.objective || "No description",
         }));
     }
 
     transformTestCycles(zephyrData) {
-        return zephyrData.values.map(cycle => ({
-            id: cycle.id,
-            testPlanIds: cycle.links?.testPlans?.map(plan => plan.testPlanId) || [],
-            name: cycle.name,
-            description: cycle.objective || "Sin descripción",
-            suiteType: "staticTestSuite",
-        }));
+        return zephyrData.values.map(cycle => {
+            // Zephyr Scale API returns testPlan as a single object { id, self },
+            // not an array. Support both shapes defensively.
+            let testPlanIds = [];
+            if (cycle.links?.testPlans) {
+                // Array shape (older API versions)
+                testPlanIds = cycle.links.testPlans.map(plan => plan.testPlanId ?? plan.id);
+            } else if (cycle.links?.testPlan) {
+                // Single-object shape (current API)
+                const tp = cycle.links.testPlan;
+                const id = tp.testPlanId ?? tp.id;
+                if (id) testPlanIds = [id];
+            }
+
+            return {
+                id: cycle.id,
+                key: cycle.key,
+                testPlanIds,
+                name: cycle.name,
+                description: cycle.objective || "No description",
+                suiteType: "staticTestSuite",
+            };
+        });
     }
 
     async extractField(endpoint) {
@@ -85,11 +101,68 @@ export class ZephyrTests {
     }
 
 
+    /**
+     * Fetch all test case keys assigned to a given test cycle.
+     * Tries multiple strategies since the Zephyr Scale v2 API has no single
+     * reliable endpoint for cycle→testCase membership.
+     */
+    async fetchTestCaseKeysForCycle(cycleKey, cycleId) {
+        // Strategy 1: filter testcases by testCycleKey (key string e.g. "SCRUM-R1")
+        try {
+            const response = await axios.get(`${this.baseUrl}testcases`, {
+                headers: { Authorization: `Bearer ${this.token}` },
+                params: { projectKey: this.projectKey, testCycleKey: cycleKey }
+            });
+            const data = response.data;
+            if (data?.values?.length > 0) {
+                console.log(`[Zephyr] Strategy 1 (testCycleKey=${cycleKey}): found ${data.values.length} test case(s)`);
+                return data.values.map(tc => tc.key).filter(Boolean);
+            }
+        } catch (error) {
+            console.error(`❌ Strategy 1 failed for cycle ${cycleKey}:`, error?.response?.data || error.message);
+        }
+
+        // Strategy 2: filter testexecutions by testCycleKey (covers cases where test cases
+        // were added to the cycle via the UI, which creates a "Not Executed" execution record)
+        try {
+            const response = await axios.get(`${this.baseUrl}testexecutions`, {
+                headers: { Authorization: `Bearer ${this.token}` },
+                params: { projectKey: this.projectKey, testCycleKey: cycleKey }
+            });
+            const data = response.data;
+            if (data?.values?.length > 0) {
+                console.log(`[Zephyr] Strategy 2 (testexecutions testCycleKey=${cycleKey}): found ${data.values.length} execution(s)`);
+                return [...new Set(data.values.map(exec => exec.testCase?.key).filter(Boolean))];
+            }
+        } catch (error) {
+            console.error(`❌ Strategy 2 failed for cycle ${cycleKey}:`, error?.response?.data || error.message);
+        }
+
+        // Strategy 3: filter testexecutions by numeric cycle ID
+        if (cycleId) {
+            try {
+                const response = await axios.get(`${this.baseUrl}testexecutions`, {
+                    headers: { Authorization: `Bearer ${this.token}` },
+                    params: { projectKey: this.projectKey, testCycle: cycleId }
+                });
+                const data = response.data;
+                if (data?.values?.length > 0) {
+                    console.log(`[Zephyr] Strategy 3 (testexecutions testCycle=${cycleId}): found ${data.values.length} execution(s)`);
+                    return [...new Set(data.values.map(exec => exec.testCase?.key).filter(Boolean))];
+                }
+            } catch (error) {
+                console.error(`❌ Strategy 3 failed for cycle ${cycleId}:`, error?.response?.data || error.message);
+            }
+        }
+
+        return [];
+    }
+
     async fetchAndTransformTestCases() {
         const testCasesData = await this.fetchZephyrData(`${this.baseUrl}testcases`);
         if (!testCasesData || !testCasesData.values) {
-            console.error('❌ No se pudieron obtener los test cases.');
-            return;
+            console.error('❌ Failed to retrieve test cases from Zephyr.');
+            return [];
         }
 
         const transformedTestCases = await Promise.all(testCasesData.values.map(async (testCase) => {
@@ -100,17 +173,18 @@ export class ZephyrTests {
 
             // Extract the testCycleId from the Zephyr test case links
             const testCycleId = testCase.links?.testCycles?.[0]?.testCycleId ?? null;
+            console.log(`[Zephyr] Test case ${testCase.key} links:`, JSON.stringify(testCase.links));
 
             const patchOps = [
                 {
                     op: "add",
                     path: "/fields/System.Title",
-                    value: testCase.name || "Sin título"
+                    value: testCase.name || "Untitled test case"
                 },
                 {
                     op: "add",
                     path: "/fields/System.Description",
-                    value: testCase.objective || "Caso de prueba importado desde Zephyr"
+                    value: testCase.objective || "Test case imported from Zephyr"
                 },
                 {
                     "op": "add",
@@ -129,7 +203,7 @@ export class ZephyrTests {
                 }
             ];
 
-            return { patchOps, testCycleId };
+            return { patchOps, testCycleId, zephyrKey: testCase.key };
         }));
 
         return transformedTestCases;
