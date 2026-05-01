@@ -19,6 +19,12 @@ export class TestsMigration {
         this.testCyclesMapping = {};
         // Maps Azure suite ID → Azure plan ID, populated during migrateTestSuites
         this.testSuiteToPlanMapping = {};
+        // Maps Zephyr plan ID → Azure root suite ID (returned by createTestPlan)
+        this.testPlanRootSuiteMapping = {};
+        // Maps Zephyr cycle ID → cycle key (e.g. "SCRUM-R1"), populated during migrateTestSuites
+        this.zephyrCycleKeyById = {};
+        // Maps Zephyr cycle key → cycle ID (reverse lookup)
+        this.zephyrCycleIdByKey = {};
 
         // Null-check for Zephyr token: log a warning if absent so migrate* methods can return early
         if (!jiraToken) {
@@ -54,6 +60,10 @@ export class TestsMigration {
                     const createdTestPlan = await this.azureHandler.createTestPlan(testPlanData);
                     this.testItemCreated('plan', createdTestPlan.id);
                     this.testPlanMapping[(testPlan.id)] = createdTestPlan.id;
+                    // Store the root suite ID returned by Azure — used as parentSuiteId for child suites
+                    if (createdTestPlan.rootSuite?.id) {
+                        this.testPlanRootSuiteMapping[createdTestPlan.id] = createdTestPlan.rootSuite.id;
+                    }
 
                     data.migrated += 1;
                     fs.writeFileSync(this.total_filepath, JSON.stringify(data, null, 2), 'utf-8');
@@ -85,12 +95,24 @@ export class TestsMigration {
             fs.writeFileSync(this.total_filepath, JSON.stringify(data, null, 2), 'utf-8');
 
             for (const testCycle of testCycles) {
-                const testPlanId = this.testPlanMapping[testCycle.testPlanIds[0]];
+                const zephyrPlanId = testCycle.testPlanIds?.[0];
+                const testPlanId = zephyrPlanId ? this.testPlanMapping[zephyrPlanId] : undefined;
+
+                if (!testPlanId) {
+                    this.log(`SKIPPED: test suite "${testCycle.name}" — no matching Azure test plan found (Zephyr plan ID: ${zephyrPlanId ?? 'none'})`);
+                    this.incrementFailedCount(data);
+                    continue;
+                }
+
+                // Use the root suite ID returned by Azure when the plan was created.
+                // Falling back to planId + 1 is fragile; the root suite ID is the correct parent.
+                const rootSuiteId = this.testPlanRootSuiteMapping[testPlanId] || (testPlanId + 1);
+
                 const testCycleData = {
                     name: testCycle.name,
-                    type: testCycle.suiteType,
+                    type: 'staticTestSuite',
                     planId: testPlanId,
-                    parentSuiteId: testPlanId + 1
+                    parentSuiteId: rootSuiteId
                 };
 
                 try {
@@ -99,6 +121,11 @@ export class TestsMigration {
                     this.testItemCreated('suite', createdTestSuite.id);
                     this.testCyclesMapping[(testCycle.id)] = createdTestSuite.id;
                     this.testSuiteToPlanMapping[createdTestSuite.id] = testPlanId;
+                    // Store cycle key ↔ cycle ID for execution-based test case lookup
+                    if (testCycle.key) {
+                        this.zephyrCycleKeyById[testCycle.id] = testCycle.key;
+                        this.zephyrCycleIdByKey[testCycle.key] = testCycle.id;
+                    }
 
                     data.migrated += 1;
                     fs.writeFileSync(this.total_filepath, JSON.stringify(data, null, 2), 'utf-8');
@@ -128,8 +155,38 @@ export class TestsMigration {
             data.total += await this.zephyrHandler.getNumOf('testcases');
             fs.writeFileSync(this.total_filepath, JSON.stringify(data, null, 2), 'utf-8');
 
-            // Build a mapping of testCaseId → testSuiteId for post-creation mapping
-            const testCaseToSuiteMapping = {};
+            // Build a cycle-key → [testCase keys] map by querying executions per cycle.
+            // This is the reliable way to get cycle membership — the test case list endpoint
+            // does not consistently populate links.testCycles.
+            const cycleKeyToTestCaseKeys = {};
+            for (const [zephyrCycleId, azureSuiteId] of Object.entries(this.testCyclesMapping)) {
+                const cycleKey = this.zephyrCycleKeyById?.[zephyrCycleId];
+                if (!cycleKey) {
+                    this.log(`Cycle ID ${zephyrCycleId} has no key stored — skipping execution lookup`);
+                    continue;
+                }
+                const tcKeys = await this.zephyrHandler.fetchTestCaseKeysForCycle(cycleKey, zephyrCycleId);
+                cycleKeyToTestCaseKeys[cycleKey] = tcKeys;
+                this.log(`Cycle "${cycleKey}" (id: ${zephyrCycleId}) → suite ${azureSuiteId}: ${tcKeys.length} test case(s)${tcKeys.length > 0 ? ': ' + tcKeys.join(', ') : ''}`);
+            }
+
+            // Build: Zephyr testCase key → [Azure suite IDs] (one-to-many: a test case can
+            // belong to multiple cycles, so collect ALL suite IDs for each test case key)
+            const testCaseKeyToSuiteIds = {};
+            for (const [cycleKey, tcKeys] of Object.entries(cycleKeyToTestCaseKeys)) {
+                const zephyrCycleId = this.zephyrCycleIdByKey?.[cycleKey];
+                const azureSuiteId = zephyrCycleId ? this.testCyclesMapping[zephyrCycleId] : undefined;
+                if (!azureSuiteId) continue;
+                for (const tcKey of tcKeys) {
+                    if (!testCaseKeyToSuiteIds[tcKey]) testCaseKeyToSuiteIds[tcKey] = [];
+                    if (!testCaseKeyToSuiteIds[tcKey].includes(azureSuiteId)) {
+                        testCaseKeyToSuiteIds[tcKey].push(azureSuiteId);
+                    }
+                }
+            }
+
+            // Map: Azure work item ID → [Azure suite IDs] (populated during creation below)
+            const testCaseToSuiteIds = {};
 
             for (const testcase of testCases) {
                 const testcaseObj = {
@@ -142,9 +199,23 @@ export class TestsMigration {
                     const createdTestCase = await this.azureHandler.createTestCase(testcase.patchOps);
                     this.testItemCreated('Test Case', createdTestCase.id);
 
-                    // Record the mapping from test case to its suite using the testCycleId
-                    if (testcase.testCycleId && this.testCyclesMapping[testcase.testCycleId]) {
-                        testCaseToSuiteMapping[createdTestCase.id] = this.testCyclesMapping[testcase.testCycleId];
+                    // Collect all suites this test case belongs to
+                    const suiteIdsFromCycle = testcase.zephyrKey
+                        ? (testCaseKeyToSuiteIds[testcase.zephyrKey] || [])
+                        : [];
+
+                    // Fallback: legacy testCycleId link
+                    const suiteIdFromLink = testcase.testCycleId
+                        ? this.testCyclesMapping[testcase.testCycleId]
+                        : undefined;
+
+                    const allSuiteIds = [...new Set([
+                        ...suiteIdsFromCycle,
+                        ...(suiteIdFromLink ? [suiteIdFromLink] : [])
+                    ])];
+
+                    if (allSuiteIds.length > 0) {
+                        testCaseToSuiteIds[createdTestCase.id] = allSuiteIds;
                     }
 
                     data.migrated += 1;
@@ -152,24 +223,23 @@ export class TestsMigration {
                 } catch (error) {
                     this.log(`FAILED: test case "${testcaseObj.name}" - ${error.message}`);
                     this.incrementFailedCount(data);
-                    // Continue to the next test case — do not abort the loop
                 }
             }
 
-            // Map each created test case to its corresponding test suite
-            for (const [testCaseId, testSuiteId] of Object.entries(testCaseToSuiteMapping)) {
-                try {
-                    // Resolve the test plan ID from the suite-to-plan mapping
-                    const testPlanId = this.testSuiteToPlanMapping[testSuiteId];
-                    if (!testPlanId) {
-                        this.log(`FAILED: cannot resolve test plan for suite ${testSuiteId} (test case ${testCaseId})`);
-                        continue;
+            // Map each created test case to ALL its corresponding suites
+            for (const [testCaseId, suiteIds] of Object.entries(testCaseToSuiteIds)) {
+                for (const testSuiteId of suiteIds) {
+                    try {
+                        const testPlanId = this.testSuiteToPlanMapping[testSuiteId];
+                        if (!testPlanId) {
+                            this.log(`FAILED: cannot resolve test plan for suite ${testSuiteId} (test case ${testCaseId})`);
+                            continue;
+                        }
+                        await this.azureHandler.mapTestcaseToTestSuite(testPlanId, testSuiteId, testCaseId);
+                        this.log(`Mapped test case ${testCaseId} to suite ${testSuiteId} in plan ${testPlanId}`);
+                    } catch (error) {
+                        this.log(`FAILED: mapping test case ${testCaseId} to suite ${testSuiteId} - ${error.message}`);
                     }
-                    await this.azureHandler.mapTestcaseToTestSuite(testPlanId, testSuiteId, testCaseId);
-                    this.log(`Mapped test case ${testCaseId} to suite ${testSuiteId} in plan ${testPlanId}`);
-                } catch (error) {
-                    this.log(`FAILED: mapping test case ${testCaseId} to suite ${testSuiteId} - ${error.message}`);
-                    // Continue mapping remaining test cases — do not abort the loop
                 }
             }
 
