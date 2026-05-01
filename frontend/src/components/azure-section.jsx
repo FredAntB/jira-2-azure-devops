@@ -1,14 +1,13 @@
-import { useState, useEffect } from "react"; // Importa useEffect
-import axios from "axios";
+import { useState, useEffect } from "react";
 import "./azure-section.css";
 import "../styles/global.css";
-import { getTokens, postTokens } from "../../utils/api";
+import { getTokens, postTokens, deleteToken as deleteTokenApi } from "../../utils/api";
 
 function AzureSection() {
   // Estados para almacenar los valores ingresados
   const [apiToken, setApiToken] = useState("");
   const [email, setEmail] = useState("");
-  const [url, setUrl] = useState("");
+  const [organization, setOrganization] = useState("");
 
   // Load user tokens on component mount
   useEffect(() => {
@@ -30,7 +29,7 @@ function AzureSection() {
           // Populate fields with the Azure token data
           setApiToken(azureToken.Number);
           setEmail(azureToken.email);
-          setUrl(azureToken.url);
+          setOrganization(azureToken.url || "");
         }
         return;
       }
@@ -48,7 +47,7 @@ function AzureSection() {
             // Populate fields with the Azure token data
             setApiToken(azureToken.Number);
             setEmail(azureToken.email);
-            setUrl(azureToken.url);
+            setOrganization(azureToken.url || "");
           }
         }
       } catch (error) {
@@ -72,7 +71,7 @@ function AzureSection() {
         apiToken,
         "Azure Devops",
         email || null,
-        url || null
+        organization || null
       );
 
       if (data[0]) {
@@ -97,45 +96,14 @@ function AzureSection() {
     }
 
     try {
-      // Fetch the Azure token ID for the user
-      const response = await axios.get("http://localhost:4000/api/tokens", {
-        params: { username },
-      });
-
-      console.log("Backend response in deleteToken:", response.data); // Debug
-
-      if (response.data.success && response.data.tokens) {
-        // Find the Azure token
-        const azureToken = response.data.tokens.find(
-          (token) => token.Application === "Azure Devops"
-        );
-
-        console.log("Token found in deleteToken:", azureToken); // Debug
-
-        if (!azureToken || !azureToken.id) {
-          alert("No Azure token found for this user.");
-          return;
-        }
-
-        console.log("Attempting to delete token with ID:", azureToken.id); // Debug
-
-        // Send request to delete the token
-        const deleteResponse = await axios.delete(
-          "http://localhost:4000/api/delete-token",
-          {
-            data: { username, tokenId: azureToken.id, splitToken: false },
-          }
-        );
-
-        if (deleteResponse.data.success) {
-          alert("Token deleted successfully!");
-          // Clear the form fields
-          setApiToken("");
-          setEmail("");
-          setUrl("");
-        } else {
-          alert("Error: " + deleteResponse.data.message);
-        }
+      const data = await deleteTokenApi(username, "Azure Devops");
+      if (data.success) {
+        alert("Token deleted successfully!");
+        setApiToken("");
+        setEmail("");
+        setOrganization("");
+      } else {
+        alert("Error: " + data.message);
       }
     } catch (error) {
       console.error("Error deleting token:", error);
@@ -157,6 +125,14 @@ function AzureSection() {
           placeholder="Enter your Azure Token"
           value={apiToken}
           onChange={(e) => setApiToken(e.target.value)}
+        />
+        <label htmlFor="azure-organization">Organization:</label>
+        <input
+          type="text"
+          id="azure-organization"
+          placeholder="Enter your Azure DevOps organization name"
+          value={organization}
+          onChange={(e) => setOrganization(e.target.value)}
         />
       </div>
       <button className="save-button" onClick={handleSaveToken}>
