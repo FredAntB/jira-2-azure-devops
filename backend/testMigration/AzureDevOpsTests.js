@@ -128,15 +128,22 @@ s
     }
 
     
-    //
-    async  mapTestcaseToTestSuite(testPlanId, testSuiteId, testCaseIds) {
-        const url = `https://dev.azure.com/${this.organization}/${this.project}/_apis/test/Plans/${testPlanId}/suites/${testSuiteId}/testcases/${testCaseIds}?api-version=7.1`; 
+    async mapTestcaseToTestSuite(testPlanId, testSuiteId, testCaseId) {
+        // POST to the testplan API with an array body as required by SuiteTestCaseCreateUpdateParameters[].
+        // URL casing matters: Plans, Suites, TestCase (capital letters as per the API docs).
+        const url = `https://dev.azure.com/${this.organization}/${this.project}/_apis/testplan/Plans/${testPlanId}/Suites/${testSuiteId}/TestCase?api-version=7.1`;
+        const payload = [
+            {
+                pointAssignments: [],
+                workItem: { id: testCaseId }
+            }
+        ];
         try {
-            const result = await this.makeApiRequest(url, {});
-            console.log('Test Case Mapped:', result);
+            const result = await this.makeApiRequest(url, payload, this.createAuthHeaders('application/json'));
+            console.log(`Test Case ${testCaseId} mapped to suite ${testSuiteId}`);
             return result;
         } catch (error) {
-            console.error('Failed to map test case to test suite: aqui', error.message);
+            console.error('Failed to map test case to test suite:', error.message);
             throw error;
         }
     }
