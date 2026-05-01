@@ -4,12 +4,16 @@
   "version": "1.0.0",
   "main": "login.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --runInBand"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
+  "jest": {
+    "transform": {},
+    "testEnvironment": "node"
+  },
   "dependencies": {
     "axios": "^1.8.3",
     "bcrypt": "^5.1.1",
@@ -22,5 +26,9 @@
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.12.0",
     "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "fast-check": "^4.7.0",
+    "jest": "^30.3.0"
   }
 }
